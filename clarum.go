@@ -6,24 +6,8 @@ import (
 	"github.com/goclarum/clarum/http"
 )
 
-func Http() HttpBuilder {
-	return &httpEndpointBuilder{}
-}
-
-type HttpBuilder interface {
-	Client() *http.ClientEndpointBuilder
-	Server() *http.ServerEndpointBuilder
-}
-
-type httpEndpointBuilder struct {
-}
-
-func (heb *httpEndpointBuilder) Client() *http.ClientEndpointBuilder {
-	return http.Client()
-}
-
-func (heb *httpEndpointBuilder) Server() *http.ServerEndpointBuilder {
-	return http.Server()
+func Http() http.Builder {
+	return &http.EndpointBuilder{}
 }
 
 func Finish() {

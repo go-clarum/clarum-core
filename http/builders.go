@@ -6,6 +6,22 @@ import (
 	"time"
 )
 
+type Builder interface {
+	Client() *ClientEndpointBuilder
+	Server() *ServerEndpointBuilder
+}
+
+type EndpointBuilder struct {
+}
+
+func (heb *EndpointBuilder) Client() *ClientEndpointBuilder {
+	return Client()
+}
+
+func (heb *EndpointBuilder) Server() *ServerEndpointBuilder {
+	return Server()
+}
+
 func Client() *ClientEndpointBuilder {
 	return &ClientEndpointBuilder{}
 }

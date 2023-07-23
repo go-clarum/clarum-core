@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// this test fails intentionally
 func TestGet(t *testing.T) {
 	Client1.Send(clrm.Get())
 
