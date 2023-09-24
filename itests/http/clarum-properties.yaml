@@ -1,0 +1,3 @@
+profile: dev
+logging:
+    level: debug

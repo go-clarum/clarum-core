@@ -2,7 +2,6 @@ package http
 
 import (
 	"github.com/goclarum/clarum"
-	"log"
 	"os"
 	"testing"
 )
@@ -20,7 +19,7 @@ var Server1 = clarum.Http().Server().
 	Build()
 
 func TestMain(m *testing.M) {
-	log.Println(log.Ldate|log.Ltime|log.Lshortfile, "My main test setup")
+	clarum.Setup()
 
 	result := m.Run()
 

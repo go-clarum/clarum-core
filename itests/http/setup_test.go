@@ -2,7 +2,6 @@ package http
 
 import (
 	"github.com/goclarum/clarum"
-	"log"
 	"os"
 	"testing"
 )
@@ -20,11 +19,8 @@ var Server1 = clarum.Http().Server().
 	Build()
 
 func TestMain(m *testing.M) {
-	//TODO: framework setup here
+	clarum.Setup()
 
-	log.Println(log.Ldate|log.Ltime|log.Lshortfile, "My main test setup")
-
-	// call flag.Parse() here if TestMain uses flags
 	result := m.Run()
 
 	clarum.Finish()
