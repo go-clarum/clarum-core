@@ -1,6 +1,8 @@
 package http
 
 import (
+	"fmt"
+	"maps"
 	"net/http"
 )
 
@@ -73,6 +75,7 @@ type Action struct {
 	path        string
 	headers     map[string]string
 	queryParams map[string]string
+	payload     string
 }
 
 // BaseUrl - While this should normally be configured only on the HTTP client, this is also allowed on the action so that
@@ -113,14 +116,20 @@ func (action *Action) QueryParam(key string, value string) *Action {
 	return action
 }
 
+func (action *Action) Payload(payload string) *Action {
+	action.payload = payload
+	return action
+}
+
 func (action *Action) Clone() *Action {
 	return &Action{
 		method:      action.method,
 		statusCode:  action.statusCode,
 		baseUrl:     action.baseUrl,
 		path:        action.path,
-		headers:     action.headers,
-		queryParams: action.queryParams,
+		headers:     maps.Clone(action.headers),
+		queryParams: maps.Clone(action.queryParams),
+		payload:     action.payload,
 	}
 }
 
@@ -144,6 +153,24 @@ func (action *Action) OverwriteWith(overwriting *Action) *Action {
 	if len(overwriting.queryParams) > 0 {
 		action.queryParams = overwriting.queryParams
 	}
+	if len(overwriting.payload) > 0 {
+		action.payload = overwriting.payload
+	}
 
 	return action
+}
+
+func (action *Action) ToString() string {
+	return fmt.Sprintf(
+		"["+
+			"method: %s, "+
+			"statusCode: %d, "+
+			"baseUrl: %s, "+
+			"path: '%s', "+
+			"headers: %s, "+
+			"queryParams: %s, "+
+			"payload: %s"+
+			"]",
+		action.method, action.statusCode, action.baseUrl, action.path,
+		action.headers, action.queryParams, action.payload)
 }

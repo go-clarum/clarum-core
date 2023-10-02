@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/goclarum/clarum/core/maps"
+	"maps"
 	"net/http"
 	"testing"
 )
@@ -36,12 +36,14 @@ func TestHTTPVerbs(t *testing.T) {
 func TestBuilder(t *testing.T) {
 	actual := Post("my", "api/v0").
 		BaseUrl("http//localhost:8080").
-		ContentType("text/plain")
+		ContentType("text/plain").
+		Payload("batman!")
 
 	expected := Action{
 		method:  http.MethodPost,
 		baseUrl: "http//localhost:8080",
 		path:    "my/api/v0",
+		payload: "batman!",
 	}
 
 	if actionsEqual(actual, &expected) {
@@ -52,7 +54,8 @@ func TestBuilder(t *testing.T) {
 func TestClone(t *testing.T) {
 	action := Get("my-url").
 		BaseUrl("http//localhost:8080").
-		ContentType("text/plain")
+		ContentType("text/plain").
+		Payload("my payload")
 
 	clonedAction := action.Clone()
 
@@ -68,10 +71,12 @@ func TestClone(t *testing.T) {
 func TestOverwriteWith(t *testing.T) {
 	baseGet := Get("base-path").
 		BaseUrl("http//localhost:8080").
-		ContentType("text/plain")
+		ContentType("text/plain").
+		Payload("my initial payload")
 	action1 := Post("post-path").
 		BaseUrl("https//localhost:443").
-		ContentType("application/json")
+		ContentType("application/json").
+		Payload("my new payload")
 
 	if actionsEqual(baseGet, action1) {
 		t.Errorf("Actions should not be equal")
@@ -92,11 +97,12 @@ func actionsEqual(a1 *Action, a2 *Action) bool {
 		return false
 	} else if a1.path != a2.path {
 		return false
-	} else if !maps.EqualString(a1.headers, a2.headers) {
+	} else if !maps.Equal(a1.headers, a2.headers) {
 		return false
-	} else if !maps.EqualString(a1.queryParams, a2.queryParams) {
+	} else if !maps.Equal(a1.queryParams, a2.queryParams) {
+		return false
+	} else if a1.payload != a2.payload {
 		return false
 	}
-
 	return true
 }
