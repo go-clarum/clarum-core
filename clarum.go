@@ -6,6 +6,7 @@ import (
 	"github.com/goclarum/clarum/core/control"
 	"github.com/goclarum/clarum/http"
 	"log/slog"
+	"os"
 )
 
 // Entry point for HTTP endpoints configuration
@@ -15,6 +16,9 @@ func Http() http.Builder {
 
 func Setup() {
 	slog.Info(fmt.Sprintf("Starting clarum %s", config.Version()))
+
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: config.LoggingLevel()})
+	slog.SetDefault(slog.New(h))
 }
 
 func Finish() {

@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-var Client1 = clarum.Http().Client().
-	Name("client1").
+var testClient = clarum.Http().Client().
+	Name("testClient").
 	BaseUrl("http://localhost:8083/myApp").
 	ContentType("application/json").
 	Build()
 
-var Server1 = clarum.Http().Server().
-	Name("server1").
+var testServer = clarum.Http().Server().
+	Name("testServer").
 	Port(8083).
 	ContentType("application/json").
 	Build()

@@ -107,18 +107,18 @@ func (se *ServerEndpoint) start(ctx context.Context, cancelCtx context.CancelFun
 // after which is blocked until the send method prepares a response. This way we can tell it
 // inside the test, when to send the response.
 // The handler blocks until a timeout is triggered // TODO: check how timeouts are handled
-func requestHandler(w http.ResponseWriter, r *http.Request) {
+func requestHandler(resWriter http.ResponseWriter, req *http.Request) {
 	control.RunningActions.Add(1)
 	defer control.RunningActions.Done()
 
-	ctx := r.Context().Value(contextNameKey).(*endpointContext)
-	ctx.requestChannel <- r
+	ctx := req.Context().Value(contextNameKey).(*endpointContext)
+	ctx.requestChannel <- req
 	sendAction := <-ctx.sendChannel
 
 	for header, value := range sendAction.headers {
-		w.Header().Set(header, value)
+		resWriter.Header().Set(header, value)
 	}
 
-	w.WriteHeader(sendAction.statusCode)
-	io.WriteString(w, fmt.Sprintf("Hello, from server"))
+	resWriter.WriteHeader(sendAction.statusCode)
+	io.WriteString(resWriter, fmt.Sprintf("Hello, from server"))
 }

@@ -9,9 +9,8 @@ const (
 	version           string = "v1"
 	defaultBaseDir    string = "."
 	defaultConfigFile string = "clarum-properties.yaml"
-	defaultLogOutput  string = "clarum-tests-logs"
 	defaultLogLevel   string = "info"
-	defaultProfile    string = "default"
+	defaultProfile    string = "dev"
 )
 
 // replace missing attributes from the configuration with their default values
@@ -23,8 +22,5 @@ func (config *Config) setDefaults() {
 	}
 	if strings.IsBlank(config.Logging.Level) {
 		config.Logging.Level = defaultLogLevel
-	}
-	if strings.IsBlank(config.Logging.Output) {
-		config.Logging.Output = defaultLogOutput
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"strconv"
 )
 
 func Get(pathElements ...string) *Action {
@@ -161,16 +162,21 @@ func (action *Action) OverwriteWith(overwriting *Action) *Action {
 }
 
 func (action *Action) ToString() string {
+	statusCodeText := "none"
+	if action.statusCode > 0 {
+		statusCodeText = strconv.Itoa(action.statusCode)
+	}
+
 	return fmt.Sprintf(
 		"["+
 			"method: %s, "+
-			"statusCode: %d, "+
+			"statusCode: %s, "+
 			"baseUrl: %s, "+
 			"path: '%s', "+
 			"headers: %s, "+
 			"queryParams: %s, "+
 			"payload: %s"+
 			"]",
-		action.method, action.statusCode, action.baseUrl, action.path,
+		action.method, statusCodeText, action.baseUrl, action.path,
 		action.headers, action.queryParams, action.payload)
 }

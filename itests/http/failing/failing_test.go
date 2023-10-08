@@ -13,7 +13,7 @@ import (
 // 4. test query param value validation inbound only
 
 func TestGet(t *testing.T) {
-	Client1.Send(clrm.Get())
+	Client1.Send(t, clrm.Get())
 
 	Server1.Receive(t, clrm.Get())
 	Server1.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))
@@ -22,7 +22,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGet2(t *testing.T) {
-	Client1.Send(clrm.Get().QueryParam("myParam", "myValue1"))
+	Client1.Send(t, clrm.Get().QueryParam("myParam", "myValue1"))
 
 	Server1.Receive(t, clrm.Get().QueryParam("myParam", "myValue2"))
 	Server1.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))

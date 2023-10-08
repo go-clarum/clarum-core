@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"path"
+	"strings"
 )
 
 var c *Config
@@ -13,8 +14,7 @@ var c *Config
 type Config struct {
 	Profile string
 	Logging struct {
-		Level  string `yaml:"level"`
-		Output string `yaml:"output"`
+		Level string `yaml:"level"`
 	}
 }
 
@@ -28,6 +28,7 @@ func init() {
 
 	config.setDefaults()
 	config.overwriteWithCliFlags()
+	c = config
 
 	configYaml, _ := yaml.Marshal(config)
 	slog.Info(fmt.Sprintf("Using the following config:\n[\n%s]", configYaml))
@@ -41,10 +42,24 @@ func BaseDir() string {
 	return *baseDir
 }
 
-//func LoggingLevel() slog.Level {
-//	return slog.
-//}
+func LoggingLevel() slog.Level {
+	return parseLevel(c.Logging.Level)
+}
 
-func LogLevelName() string {
-	return c.Logging.Level
+func parseLevel(level string) slog.Level {
+	lcLevel := strings.ToLower(level)
+	var result slog.Level
+
+	switch lcLevel {
+	case "error":
+		result = slog.LevelError
+	case "warn":
+		result = slog.LevelWarn
+	case "debug":
+		result = slog.LevelDebug
+	default:
+		result = slog.LevelInfo
+	}
+
+	return result
 }
