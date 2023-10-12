@@ -4,10 +4,22 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/arrays"
+	clmStrings "github.com/goclarum/clarum/core/validators/strings"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"testing"
 )
+
+func validateHttpHeaders(t *testing.T, logPrefix string, actionToExecute *Action, headers http.Header) {
+	if err := validateHeaders(actionToExecute, headers); err != nil {
+		t.Errorf("%s: %s", logPrefix, err)
+	} else {
+		slog.Debug(fmt.Sprintf("%s: header validation successful", logPrefix))
+	}
+}
 
 func validateHeaders(action *Action, headers http.Header) error {
 	for header, expectedValue := range action.headers {
@@ -20,6 +32,14 @@ func validateHeaders(action *Action, headers http.Header) error {
 	return nil
 }
 
+func validateHttpQueryParams(t *testing.T, logPrefix string, action *Action, url *url.URL) {
+	if err := validateQueryParams(action, url.Query()); err != nil {
+		t.Errorf("%s: %s", logPrefix, err)
+	} else {
+		slog.Debug(fmt.Sprintf("%s: query params validation successful", logPrefix))
+	}
+}
+
 // validate query parameters based on these rules
 //
 //	-> validate that the param exists
@@ -28,8 +48,8 @@ func validateQueryParams(action *Action, params url.Values) error {
 	for param, expectedValue := range action.queryParams {
 		if receivedValues, exists := params[param]; exists {
 			if !arrays.Contains(receivedValues, expectedValue) {
-				return errors.New(fmt.Sprintf("Validation error: query params mismatch. Expected [%v] but received [%s]",
-					expectedValue, receivedValues))
+				return errors.New(fmt.Sprintf("Validation error: query param <%s> values mismatch. Expected [%v] but received [%s]",
+					param, expectedValue, receivedValues))
 			}
 		} else {
 			return errors.New(fmt.Sprintf("Validation error: query param <%s> missing", param))
@@ -37,6 +57,40 @@ func validateQueryParams(action *Action, params url.Values) error {
 	}
 
 	return nil
+}
+
+func validateHttpStatusCode(t *testing.T, logPrefix string, action *Action, statusCode int) {
+	if statusCode != action.statusCode {
+		t.Errorf("%s: validation error: HTTP status mismatch. Expected [%d] but received [%d]", logPrefix, action.statusCode, statusCode)
+	} else {
+		slog.Debug(fmt.Sprintf("%s: HTTP status validation successful", logPrefix))
+	}
+}
+
+func validateHttpBody(t *testing.T, logPrefix string, action *Action, body io.ReadCloser) {
+	defer closeBody(logPrefix, body)
+
+	if clmStrings.IsBlank(action.payload) {
+		slog.Debug(fmt.Sprintf("%s: action payload is empty. No body validation will be done", logPrefix))
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		t.Errorf("%s: could not read response body: %s", logPrefix, err)
+	}
+
+	if err := validatePayload(action, bodyBytes); err != nil {
+		t.Errorf("%s: %s", logPrefix, err)
+	} else {
+		slog.Debug(fmt.Sprintf("%s: payload validation successful", logPrefix))
+	}
+}
+
+func closeBody(logPrefix string, body io.ReadCloser) {
+	if err := body.Close(); err != nil {
+		slog.Error(fmt.Sprintf("%s: unable to close body: %s", logPrefix, err))
+	}
 }
 
 func validatePayload(action *Action, payload []byte) error {

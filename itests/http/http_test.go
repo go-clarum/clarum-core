@@ -17,10 +17,10 @@ func TestGet(t *testing.T) {
 
 func TestPost(t *testing.T) {
 	testClient.Send(t, clrm.Post().QueryParam("myParam", "myValue1").
-		Payload("plain text payload"))
+		Payload("my plain text payload"))
 
 	testServer.Receive(t, clrm.Post().QueryParam("myParam", "myValue1").
-		Payload("plain text payload"))
+		Payload("my plain text payload"))
 	testServer.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))
 
 	testClient.Receive(t, clrm.Response(http.StatusOK).ContentType("text/xml"))

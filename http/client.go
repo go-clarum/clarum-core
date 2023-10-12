@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
-	"github.com/goclarum/clarum/core/validators/strings"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,28 +19,28 @@ type ClientEndpoint struct {
 }
 
 func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
-	slog.Debug(fmt.Sprintf("HTTP client %s - action to send: %s", ce.name, action.ToString()))
+	slog.Debug(fmt.Sprintf("%s: action to send: %s", clientLogPrefix(ce.name), action.ToString()))
 	control.RunningActions.Add(1)
 
 	go func() {
 		defer control.RunningActions.Done()
 
 		actionToExecute := ce.getSendActionToExecute(action)
-		slog.Debug(fmt.Sprintf("HTTP client %s executing action: %s", ce.name, actionToExecute.ToString()))
+		slog.Debug(fmt.Sprintf("%s: executing action: %s", clientLogPrefix(ce.name), actionToExecute.ToString()))
 
 		req, err := buildRequest(ce.name, actionToExecute)
 		if err != nil {
-			t.Errorf("HTTP client %s canceled action. Error: %s", ce.name, err)
+			t.Errorf("%s: canceled action. Error: %s", clientLogPrefix(ce.name), err)
 		}
 
-		logRequest(ce.name, action.payload, req)
+		logOutgoingRequest(clientLogPrefix(ce.name), action.payload, req)
 		res, err := ce.client.Do(req)
-		logResponse(ce.name, res)
+		logIncomingResponse(clientLogPrefix(ce.name), res)
 
 		// TODO: handle technical errors
 		//  check: socket connection, connection refused, connection timeout
 		if err != nil {
-			t.Errorf("HTTP client %s error on response: %s", ce.name, err)
+			t.Errorf("%s: error on response: %s", clientLogPrefix(ce.name), err)
 		}
 
 		ce.responseChannel <- res
@@ -49,16 +48,16 @@ func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
 }
 
 func (ce *ClientEndpoint) Receive(t *testing.T, action *Action) {
-	slog.Debug(fmt.Sprintf("HTTP client %s - action to receive: %s", ce.name, action.ToString()))
+	slog.Debug(fmt.Sprintf("%s: action to receive: %s", clientLogPrefix(ce.name), action.ToString()))
 
 	response := <-ce.responseChannel
 
 	actionToExecute := ce.getReceiveActionToExecute(action)
-	slog.Debug(fmt.Sprintf("HTTP client %s executing validation action: %s", ce.name, actionToExecute.ToString()))
+	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", clientLogPrefix(ce.name), actionToExecute.ToString()))
 
-	validateHttpStatusCode(t, ce.name, response, actionToExecute)
-	validateHttpHeaders(t, ce.name, actionToExecute, response)
-	validateHttpBody(t, ce.name, actionToExecute, response)
+	validateHttpStatusCode(t, clientLogPrefix(ce.name), actionToExecute, response.StatusCode)
+	validateHttpHeaders(t, clientLogPrefix(ce.name), actionToExecute, response.Header)
+	validateHttpBody(t, clientLogPrefix(ce.name), actionToExecute, response.Body)
 }
 
 // put missing data into a send action
@@ -86,12 +85,12 @@ func (ce *ClientEndpoint) getReceiveActionToExecute(action *Action) *Action {
 	return actionToExecute
 }
 
-func buildRequest(endpointName string, action *Action) (*http.Request, error) {
+func buildRequest(prefix string, action *Action) (*http.Request, error) {
 	url := BuildPath(action.baseUrl, action.path)
 
 	req, err := http.NewRequest(action.method, url, bytes.NewBufferString(action.payload))
 	if err != nil {
-		slog.Error(fmt.Sprintf("HTTP client %s error: %s", endpointName, err))
+		slog.Error(fmt.Sprintf("%s: error: %s", prefix, err))
 		return nil, err
 	}
 
@@ -108,76 +107,38 @@ func buildRequest(endpointName string, action *Action) (*http.Request, error) {
 	return req, nil
 }
 
-func validateHttpStatusCode(t *testing.T, endpointName string, response *http.Response, actionToExecute *Action) {
-	if response.StatusCode != actionToExecute.statusCode {
-		t.Errorf("HTTP client %s validation error: HTTP status mismatch", endpointName)
-	} else {
-		slog.Debug(fmt.Sprintf("HTTP client %s HTTP status validation successful", endpointName))
-	}
-}
-
-func validateHttpHeaders(t *testing.T, endpointName string, actionToExecute *Action, response *http.Response) {
-	if err := validateHeaders(actionToExecute, response.Header); err != nil {
-		t.Errorf("HTTP client %s: %s", endpointName, err)
-	} else {
-		slog.Debug(fmt.Sprintf("HTTP client %s header validation successful", endpointName))
-	}
-}
-
-func validateHttpBody(t *testing.T, endpointName string, actionToExecute *Action, response *http.Response) {
-	defer closeBody(endpointName, response.Body)
-
-	if strings.IsBlank(actionToExecute.payload) {
-		slog.Debug(fmt.Sprintf("HTTP client %s action payload is empty. No body validation will be done", endpointName))
-		return
-	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Errorf("HTTP client %s: could not read response body: %s", endpointName, err)
-	}
-
-	if err := validatePayload(actionToExecute, bodyBytes); err != nil {
-		t.Errorf("HTTP client %s: %s", endpointName, err)
-	} else {
-		slog.Debug(fmt.Sprintf("HTTP client %s payload validation successful", endpointName))
-	}
-}
-
-func closeBody(endpointName string, body io.ReadCloser) {
-	if err := body.Close(); err != nil {
-		slog.Error(fmt.Sprintf("HTTP client %s unable to close body: %s", endpointName, err))
-	}
-}
-
-func logRequest(endpointName string, payload string, req *http.Request) {
-	slog.Info(fmt.Sprintf("HTTP client %s sending request: ["+
+func logOutgoingRequest(prefix string, payload string, req *http.Request) {
+	slog.Info(fmt.Sprintf("%s: sending request: ["+
 		"method: %s, "+
 		"url: %s, "+
 		"headers: %s, "+
 		"payload: %s"+
 		"]",
-		endpointName, req.Method, req.URL, req.Header, payload))
+		prefix, req.Method, req.URL, req.Header, payload))
 }
 
 // we read the body 'as is' for logging, after which we put it back into the response
 // with an open reader so that it can be read downstream again
-func logResponse(endpointName string, res *http.Response) {
+func logIncomingResponse(prefix string, res *http.Response) {
 	bodyBytes, _ := io.ReadAll(res.Body)
 	bodyString := ""
 
 	err := res.Body.Close()
 	if err != nil {
-		slog.Error(fmt.Sprintf("HTTP client %s: could not read response body: %s", endpointName, err))
+		slog.Error(fmt.Sprintf("%s: could not read response body: %s", prefix, err))
 	} else {
 		res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		bodyString = string(bodyBytes)
 	}
 
-	slog.Info(fmt.Sprintf("HTTP client %s received response: ["+
+	slog.Info(fmt.Sprintf("%s: received response: ["+
 		"status: %s, "+
 		"headers: %s, "+
 		"payload: %s"+
 		"]",
-		endpointName, res.Status, res.Header, bodyString))
+		prefix, res.Status, res.Header, bodyString))
+}
+
+func clientLogPrefix(endpointName string) string {
+	return fmt.Sprintf("HTTP client %s", endpointName)
 }
