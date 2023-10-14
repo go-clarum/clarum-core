@@ -10,9 +10,11 @@ func TestGet(t *testing.T) {
 	testClient.Send(t, clrm.Get())
 
 	testServer.Receive(t, clrm.Get())
-	testServer.Send(clrm.Response(http.StatusOK))
+	testServer.Send(clrm.Response(http.StatusOK).
+		Payload("my test"))
 
-	testClient.Receive(t, clrm.Response(http.StatusOK))
+	testClient.Receive(t, clrm.Response(http.StatusOK).
+		Payload("my test"))
 }
 
 func TestPost(t *testing.T) {
@@ -20,7 +22,7 @@ func TestPost(t *testing.T) {
 		Payload("my plain text payload"))
 
 	testServer.Receive(t, clrm.Post().QueryParam("myParam", "myValue1").
-		Payload("my plain text payload"))
+		Payload("my plain text payload2"))
 	testServer.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))
 
 	testClient.Receive(t, clrm.Response(http.StatusOK).ContentType("text/xml"))

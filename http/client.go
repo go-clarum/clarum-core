@@ -19,28 +19,29 @@ type ClientEndpoint struct {
 }
 
 func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
-	slog.Debug(fmt.Sprintf("%s: action to send: %s", clientLogPrefix(ce.name), action.ToString()))
+	logPrefix := clientLogPrefix(ce.name)
+	slog.Debug(fmt.Sprintf("%s: action to send: %s", logPrefix, action.ToString()))
 	control.RunningActions.Add(1)
 
 	go func() {
 		defer control.RunningActions.Done()
 
 		actionToExecute := ce.getSendActionToExecute(action)
-		slog.Debug(fmt.Sprintf("%s: executing action: %s", clientLogPrefix(ce.name), actionToExecute.ToString()))
+		slog.Debug(fmt.Sprintf("%s: executing action: %s", logPrefix, actionToExecute.ToString()))
 
 		req, err := buildRequest(ce.name, actionToExecute)
 		if err != nil {
-			t.Errorf("%s: canceled action. Error: %s", clientLogPrefix(ce.name), err)
+			t.Errorf("%s: canceled action. Error: %s", logPrefix, err)
 		}
 
-		logOutgoingRequest(clientLogPrefix(ce.name), action.payload, req)
+		logOutgoingRequest(logPrefix, action.payload, req)
 		res, err := ce.client.Do(req)
-		logIncomingResponse(clientLogPrefix(ce.name), res)
+		logIncomingResponse(logPrefix, res)
 
 		// TODO: handle technical errors
 		//  check: socket connection, connection refused, connection timeout
 		if err != nil {
-			t.Errorf("%s: error on response: %s", clientLogPrefix(ce.name), err)
+			t.Errorf("%s: error on response: %s", logPrefix, err)
 		}
 
 		ce.responseChannel <- res
@@ -48,16 +49,17 @@ func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
 }
 
 func (ce *ClientEndpoint) Receive(t *testing.T, action *Action) {
-	slog.Debug(fmt.Sprintf("%s: action to receive: %s", clientLogPrefix(ce.name), action.ToString()))
+	logPrefix := clientLogPrefix(ce.name)
+	slog.Debug(fmt.Sprintf("%s: action to receive: %s", logPrefix, action.ToString()))
 
 	response := <-ce.responseChannel
 
 	actionToExecute := ce.getReceiveActionToExecute(action)
-	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", clientLogPrefix(ce.name), actionToExecute.ToString()))
+	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", logPrefix, actionToExecute.ToString()))
 
-	validateHttpStatusCode(t, clientLogPrefix(ce.name), actionToExecute, response.StatusCode)
-	validateHttpHeaders(t, clientLogPrefix(ce.name), actionToExecute, response.Header)
-	validateHttpBody(t, clientLogPrefix(ce.name), actionToExecute, response.Body)
+	validateHttpStatusCode(t, logPrefix, actionToExecute, response.StatusCode)
+	validateHttpHeaders(t, logPrefix, actionToExecute, response.Header)
+	validateHttpBody(t, logPrefix, actionToExecute, response.Body)
 }
 
 // put missing data into a send action
