@@ -26,18 +26,18 @@ type Endpoint struct {
 	server         *http.Server
 	context        *context.Context
 	requestChannel chan *http.Request
-	sendChannel    chan message.Action
+	sendChannel    chan message.Message
 }
 
 type endpointContext struct {
 	endpointName   string
 	requestChannel chan *http.Request
-	sendChannel    chan message.Action
+	sendChannel    chan message.Message
 }
 
 func NewServerEndpoint(name string, port uint, contentType string, timeout time.Duration) *Endpoint {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	sendChannel := make(chan message.Action)
+	sendChannel := make(chan message.Message)
 	requestChannel := make(chan *http.Request)
 
 	se := &Endpoint{
@@ -56,33 +56,33 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 }
 
 // this Method is blocking, until a request is received
-func (se *Endpoint) receive(t *testing.T, action *message.Action) {
+func (se *Endpoint) receive(t *testing.T, message *message.Message) {
 	logPrefix := serverLogPrefix(se.name)
-	slog.Debug(fmt.Sprintf("%s: action to receive: %s", logPrefix, action.ToString()))
-	actionToExecute := se.getActionToExecute(action)
+	slog.Debug(fmt.Sprintf("%s: message to receive: %s", logPrefix, message.ToString()))
+	messageToReceive := se.getFinalMessage(message)
 
 	request := <-se.requestChannel
-	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", logPrefix, actionToExecute.ToString()))
+	slog.Debug(fmt.Sprintf("%s: validating message: %s", logPrefix, messageToReceive.ToString()))
 
-	validators.ValidateHttpHeaders(t, logPrefix, actionToExecute, request.Header)
-	validators.ValidateHttpQueryParams(t, logPrefix, actionToExecute, request.URL)
-	validators.ValidateHttpBody(t, logPrefix, actionToExecute, request.Body)
+	validators.ValidateHttpHeaders(t, logPrefix, messageToReceive, request.Header)
+	validators.ValidateHttpQueryParams(t, logPrefix, messageToReceive, request.URL)
+	validators.ValidateHttpBody(t, logPrefix, messageToReceive, request.Body)
 }
 
-func (se *Endpoint) send(action *message.Action) {
-	actionToExecute := se.getActionToExecute(action)
-	// can we refactor this to send the response instead of the action?
-	se.sendChannel <- *actionToExecute
+func (se *Endpoint) send(message *message.Message) {
+	messageToSend := se.getFinalMessage(message)
+	// can we refactor this to send the response instead of the message?
+	se.sendChannel <- *messageToSend
 }
 
-func (ce *Endpoint) getActionToExecute(action *message.Action) *message.Action {
-	actionToExecute := action.Clone()
+func (ce *Endpoint) getFinalMessage(message *message.Message) *message.Message {
+	finalMessage := message.Clone()
 
-	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
-		actionToExecute.ContentType(ce.contentType)
+	if len(finalMessage.Headers) == 0 || len(finalMessage.Headers[constants.ContentTypeHeaderName]) == 0 {
+		finalMessage.ContentType(ce.contentType)
 	}
 
-	return actionToExecute
+	return finalMessage
 }
 
 func (se *Endpoint) start(ctx context.Context, cancelCtx context.CancelFunc, timeout time.Duration) {
@@ -134,19 +134,19 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	logPrefix := serverLogPrefix(ctx.endpointName)
 	logIncomingRequest(logPrefix, request)
 	ctx.requestChannel <- request
-	sendAction := <-ctx.sendChannel
+	messageToSend := <-ctx.sendChannel
 
-	for header, value := range sendAction.Headers {
+	for header, value := range messageToSend.Headers {
 		resWriter.Header().Set(header, value)
 	}
 
-	resWriter.WriteHeader(sendAction.StatusCode)
+	resWriter.WriteHeader(messageToSend.StatusCode)
 
-	_, err := io.WriteString(resWriter, sendAction.MessagePayload)
+	_, err := io.WriteString(resWriter, messageToSend.MessagePayload)
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: could not write response body: %s", logPrefix, err))
 	}
-	logOutgoingResponse(logPrefix, sendAction.StatusCode, sendAction.MessagePayload, resWriter)
+	logOutgoingResponse(logPrefix, messageToSend.StatusCode, messageToSend.MessagePayload, resWriter)
 }
 
 // we read the body 'as is' for logging, after which we put it back into the request

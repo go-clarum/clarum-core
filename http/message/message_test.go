@@ -39,32 +39,32 @@ func TestBuilder(t *testing.T) {
 		ContentType("text/plain").
 		Payload("batman!")
 
-	expected := Action{
+	expected := Message{
 		Method:         http.MethodPost,
 		Url:            "http//localhost:8080",
 		Path:           "my/api/v0",
 		MessagePayload: "batman!",
 	}
 
-	if actionsEqual(actual, &expected) {
-		t.Errorf("Action is not as expected.")
+	if messagesEqual(actual, &expected) {
+		t.Errorf("Message is not as expected.")
 	}
 }
 
 func TestClone(t *testing.T) {
-	action := Get("my-url").
+	message := Get("my-url").
 		BaseUrl("http//localhost:8080").
 		ContentType("text/plain").
 		Payload("my payload")
 
-	clonedAction := action.Clone()
+	clonedMessage := message.Clone()
 
-	if clonedAction == action {
-		t.Errorf("Action has not been cloned.")
+	if clonedMessage == message {
+		t.Errorf("Message has not been cloned.")
 	}
 
-	if !actionsEqual(clonedAction, action) {
-		t.Errorf("Actions are not equal.")
+	if !messagesEqual(clonedMessage, message) {
+		t.Errorf("Messages are not equal.")
 	}
 }
 
@@ -73,35 +73,35 @@ func TestOverwriteWith(t *testing.T) {
 		BaseUrl("http//localhost:8080").
 		ContentType("text/plain").
 		Payload("my initial payload")
-	action1 := Post("post-path").
+	postMessage := Post("post-path").
 		BaseUrl("https//localhost:443").
 		ContentType("application/json").
 		Payload("my new payload")
 
-	if actionsEqual(baseGet, action1) {
-		t.Errorf("Actions should not be equal")
+	if messagesEqual(baseGet, postMessage) {
+		t.Errorf("Messages should not be equal")
 	}
 
-	baseGet.OverwriteWith(action1)
+	baseGet.OverwriteWith(postMessage)
 
-	if !actionsEqual(baseGet, action1) {
+	if !messagesEqual(baseGet, postMessage) {
 		t.Errorf("Not all fields have been overwritten.")
 	}
 }
 
-func actionsEqual(a1 *Action, a2 *Action) bool {
+func messagesEqual(m1 *Message, m2 *Message) bool {
 
-	if a1.Method != a2.Method {
+	if m1.Method != m2.Method {
 		return false
-	} else if a1.Url != a2.Url {
+	} else if m1.Url != m2.Url {
 		return false
-	} else if a1.Path != a2.Path {
+	} else if m1.Path != m2.Path {
 		return false
-	} else if !maps.Equal(a1.Headers, a2.Headers) {
+	} else if !maps.Equal(m1.Headers, m2.Headers) {
 		return false
-	} else if !maps.Equal(a1.QueryParams, a2.QueryParams) {
+	} else if !maps.Equal(m1.QueryParams, m2.QueryParams) {
 		return false
-	} else if a1.MessagePayload != a2.MessagePayload {
+	} else if m1.MessagePayload != m2.MessagePayload {
 		return false
 	}
 	return true

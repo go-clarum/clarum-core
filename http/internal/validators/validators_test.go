@@ -8,21 +8,21 @@ import (
 )
 
 func TestValidateHeadersOK(t *testing.T) {
-	action := createTestActionWithHeaders()
+	expectedMessage := createTestMessageWithHeaders()
 	req := createRealRequest()
 
-	if err := validateHeaders(action, req.Header); err != nil {
+	if err := validateHeaders(expectedMessage, req.Header); err != nil {
 		t.Errorf("No header validation error expected, but got %s", err)
 	}
 }
 
 func TestValidateHeadersError(t *testing.T) {
-	action := createTestActionWithHeaders()
-	action.ETag("1234")
+	expectedMessage := createTestMessageWithHeaders()
+	expectedMessage.ETag("1234")
 
 	req := createRealRequest()
 
-	err := validateHeaders(action, req.Header)
+	err := validateHeaders(expectedMessage, req.Header)
 
 	if err == nil {
 		t.Errorf("Header validation error expected, but got none")
@@ -34,7 +34,7 @@ func TestValidateHeadersError(t *testing.T) {
 }
 
 func TestValidateQueryParamsOK(t *testing.T) {
-	action := message.Get("myPath").
+	expectedMessage := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -44,13 +44,13 @@ func TestValidateQueryParamsOK(t *testing.T) {
 	qParams.Set("param2", "value2")
 	req.URL.RawQuery = qParams.Encode()
 
-	if err := validateQueryParams(action, req.URL.Query()); err != nil {
+	if err := validateQueryParams(expectedMessage, req.URL.Query()); err != nil {
 		t.Errorf("No query param validation error expected, but got %s", err)
 	}
 }
 
 func TestValidateQueryParamsParamMismatch(t *testing.T) {
-	action := message.Get("myPath").
+	expectedMessage := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -60,7 +60,7 @@ func TestValidateQueryParamsParamMismatch(t *testing.T) {
 	qParams.Set("param3", "value2")
 	req.URL.RawQuery = qParams.Encode()
 
-	err := validateQueryParams(action, req.URL.Query())
+	err := validateQueryParams(expectedMessage, req.URL.Query())
 	if err == nil {
 		t.Errorf("Query param validation error expected, but got none")
 	}
@@ -71,7 +71,7 @@ func TestValidateQueryParamsParamMismatch(t *testing.T) {
 }
 
 func TestValidateQueryParamsValueMismatch(t *testing.T) {
-	action := message.Get("myPath").
+	expectedMessage := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -81,7 +81,7 @@ func TestValidateQueryParamsValueMismatch(t *testing.T) {
 	qParams.Set("param2", "value22")
 	req.URL.RawQuery = qParams.Encode()
 
-	err := validateQueryParams(action, req.URL.Query())
+	err := validateQueryParams(expectedMessage, req.URL.Query())
 	if err == nil {
 		t.Errorf("Query param validation error expected, but got none")
 	}
@@ -91,7 +91,7 @@ func TestValidateQueryParamsValueMismatch(t *testing.T) {
 	}
 }
 
-func createTestActionWithHeaders() *message.Action {
+func createTestMessageWithHeaders() *message.Message {
 	return message.Post("myPath").
 		Header("Connection", "keep-alive").
 		ContentType("application/json").

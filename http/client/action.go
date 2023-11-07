@@ -15,7 +15,7 @@ type ActionContext struct {
 type ActionBuilder struct {
 	endpoint *Endpoint
 	send     bool
-	message  message.Action
+	message  message.Message
 }
 
 func (endpoint *Endpoint) In(t *testing.T) *ActionContext {
@@ -51,11 +51,11 @@ func (endpoint *Endpoint) Receive() *ActionBuilder {
 	}
 }
 
-func (context *ActionContext) Message(action *message.Action) {
+func (context *ActionContext) Message(message *message.Message) {
 
 }
 
 // finalise action execution; return error if test property is undefined
-func (context *ActionBuilder) Message(action *message.Action) error {
+func (context *ActionBuilder) Message(message *message.Message) error {
 	return nil
 }

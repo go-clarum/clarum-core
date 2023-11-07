@@ -15,16 +15,16 @@ import (
 	"testing"
 )
 
-func ValidateHttpHeaders(t *testing.T, logPrefix string, actionToExecute *message.Action, headers http.Header) {
-	if err := validateHeaders(actionToExecute, headers); err != nil {
+func ValidateHttpHeaders(t *testing.T, logPrefix string, message *message.Message, headers http.Header) {
+	if err := validateHeaders(message, headers); err != nil {
 		t.Errorf("%s: %s", logPrefix, err)
 	} else {
 		slog.Debug(fmt.Sprintf("%s: header validation successful", logPrefix))
 	}
 }
 
-func validateHeaders(action *message.Action, headers http.Header) error {
-	for header, expectedValue := range action.Headers {
+func validateHeaders(message *message.Message, headers http.Header) error {
+	for header, expectedValue := range message.Headers {
 		if receivedValue := headers.Get(header); expectedValue != receivedValue {
 			return errors.New(fmt.Sprintf("Validation error: header <%s> mismatch. Expected [%s] but received [%s]",
 				header, expectedValue, receivedValue))
@@ -34,8 +34,8 @@ func validateHeaders(action *message.Action, headers http.Header) error {
 	return nil
 }
 
-func ValidateHttpQueryParams(t *testing.T, logPrefix string, action *message.Action, url *url.URL) {
-	if err := validateQueryParams(action, url.Query()); err != nil {
+func ValidateHttpQueryParams(t *testing.T, logPrefix string, message *message.Message, url *url.URL) {
+	if err := validateQueryParams(message, url.Query()); err != nil {
 		t.Errorf("%s: %s", logPrefix, err)
 	} else {
 		slog.Debug(fmt.Sprintf("%s: query params validation successful", logPrefix))
@@ -46,8 +46,8 @@ func ValidateHttpQueryParams(t *testing.T, logPrefix string, action *message.Act
 //
 //	-> validate that the param exists
 //	-> that the value matches
-func validateQueryParams(action *message.Action, params url.Values) error {
-	for param, expectedValue := range action.QueryParams {
+func validateQueryParams(message *message.Message, params url.Values) error {
+	for param, expectedValue := range message.QueryParams {
 		if receivedValues, exists := params[param]; exists {
 			if !arrays.Contains(receivedValues, expectedValue) {
 				return errors.New(fmt.Sprintf("Validation error: query param <%s> values mismatch. Expected [%v] but received [%s]",
@@ -61,19 +61,19 @@ func validateQueryParams(action *message.Action, params url.Values) error {
 	return nil
 }
 
-func ValidateHttpStatusCode(t *testing.T, logPrefix string, action *message.Action, statusCode int) {
-	if statusCode != action.StatusCode {
-		t.Errorf("%s: validation error: HTTP status mismatch. Expected [%d] but received [%d]", logPrefix, action.StatusCode, statusCode)
+func ValidateHttpStatusCode(t *testing.T, logPrefix string, message *message.Message, statusCode int) {
+	if statusCode != message.StatusCode {
+		t.Errorf("%s: validation error: HTTP status mismatch. Expected [%d] but received [%d]", logPrefix, message.StatusCode, statusCode)
 	} else {
 		slog.Debug(fmt.Sprintf("%s: HTTP status validation successful", logPrefix))
 	}
 }
 
-func ValidateHttpBody(t *testing.T, logPrefix string, action *message.Action, body io.ReadCloser) {
+func ValidateHttpBody(t *testing.T, logPrefix string, message *message.Message, body io.ReadCloser) {
 	defer closeBody(logPrefix, body)
 
-	if clarumstrings.IsBlank(action.MessagePayload) {
-		slog.Debug(fmt.Sprintf("%s: action payload is empty. No body validation will be done", logPrefix))
+	if clarumstrings.IsBlank(message.MessagePayload) {
+		slog.Debug(fmt.Sprintf("%s: message payload is empty. No body validation will be done", logPrefix))
 		return
 	}
 
@@ -82,7 +82,7 @@ func ValidateHttpBody(t *testing.T, logPrefix string, action *message.Action, bo
 		t.Errorf("%s: could not read response body: %s", logPrefix, err)
 	}
 
-	if err := validatePayload(action, bodyBytes); err != nil {
+	if err := validatePayload(message, bodyBytes); err != nil {
 		t.Errorf("%s: %s", logPrefix, err)
 	} else {
 		slog.Debug(fmt.Sprintf("%s: payload validation successful", logPrefix))
@@ -95,16 +95,16 @@ func closeBody(logPrefix string, body io.ReadCloser) {
 	}
 }
 
-func validatePayload(action *message.Action, payload []byte) error {
-	contentTypeHeader := action.Headers[constants.ContentTypeHeaderName]
+func validatePayload(message *message.Message, payload []byte) error {
+	contentTypeHeader := message.Headers[constants.ContentTypeHeaderName]
 	receivedPayload := string(payload)
 
-	// we let the action decide what kind of validation we do
+	// we let the message decide what kind of validation we do
 	if strings.Contains(contentTypeHeader, constants.ContentTypeJsonHeader) {
 		// do json validation
-	} else if action.MessagePayload != receivedPayload { // plain text validation
+	} else if message.MessagePayload != receivedPayload { // plain text validation
 		return errors.New(fmt.Sprintf("Validation error: payload missmatch. Expected [%s] but received [%s]",
-			action.MessagePayload, receivedPayload))
+			message.MessagePayload, receivedPayload))
 	}
 
 	return nil

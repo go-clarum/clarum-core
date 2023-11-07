@@ -37,25 +37,25 @@ func NewEndpoint(name string, baseUrl string, contentType string, timeout time.D
 	}
 }
 
-func (ce *Endpoint) send(t *testing.T, action *message.Action) {
+func (ce *Endpoint) send(t *testing.T, message *message.Message) {
 	logPrefix := clientLogPrefix(ce.name)
-	slog.Debug(fmt.Sprintf("%s: action to send: %s", logPrefix, action.ToString()))
+	slog.Debug(fmt.Sprintf("%s: message to send: %s", logPrefix, message.ToString()))
 	control.RunningActions.Add(1)
 
 	go func() {
 		defer control.RunningActions.Done()
 
 		// from here
-		actionToExecute := ce.getSendActionToExecute(action)
-		slog.Debug(fmt.Sprintf("%s: executing action: %s", logPrefix, actionToExecute.ToString()))
+		messageToSend := ce.getMessageToSend(message)
+		slog.Debug(fmt.Sprintf("%s: sending message: %s", logPrefix, messageToSend.ToString()))
 
-		req, err := buildRequest(ce.name, actionToExecute)
+		req, err := buildRequest(ce.name, messageToSend)
 		if err != nil {
-			t.Errorf("%s: canceled action. Error: %s", logPrefix, err)
+			t.Errorf("%s: canceled message. Error: %s", logPrefix, err)
 		}
 		//to here, move outside the goroutine and return error if t is nil
 
-		logOutgoingRequest(logPrefix, action.MessagePayload, req)
+		logOutgoingRequest(logPrefix, message.MessagePayload, req)
 		res, err := ce.client.Do(req)
 		logIncomingResponse(logPrefix, res)
 
@@ -69,60 +69,60 @@ func (ce *Endpoint) send(t *testing.T, action *message.Action) {
 	}()
 }
 
-func (ce *Endpoint) receive(t *testing.T, action *message.Action) {
+func (ce *Endpoint) receive(t *testing.T, message *message.Message) {
 	logPrefix := clientLogPrefix(ce.name)
-	slog.Debug(fmt.Sprintf("%s: action to receive: %s", logPrefix, action.ToString()))
+	slog.Debug(fmt.Sprintf("%s: message to receive: %s", logPrefix, message.ToString()))
 
 	response := <-ce.responseChannel
 
-	actionToExecute := ce.getReceiveActionToExecute(action)
-	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", logPrefix, actionToExecute.ToString()))
+	messageToReceive := ce.getMessageToReceive(message)
+	slog.Debug(fmt.Sprintf("%s: validating message: %s", logPrefix, messageToReceive.ToString()))
 
-	validators.ValidateHttpStatusCode(t, logPrefix, actionToExecute, response.StatusCode)
-	validators.ValidateHttpHeaders(t, logPrefix, actionToExecute, response.Header)
-	validators.ValidateHttpBody(t, logPrefix, actionToExecute, response.Body)
+	validators.ValidateHttpStatusCode(t, logPrefix, messageToReceive, response.StatusCode)
+	validators.ValidateHttpHeaders(t, logPrefix, messageToReceive, response.Header)
+	validators.ValidateHttpBody(t, logPrefix, messageToReceive, response.Body)
 }
 
-// put missing data into a send action
-func (ce *Endpoint) getSendActionToExecute(action *message.Action) *message.Action {
-	actionToExecute := action.Clone()
+// put missing data into a message to send
+func (ce *Endpoint) getMessageToSend(message *message.Message) *message.Message {
+	messageToSend := message.Clone()
 
-	if len(actionToExecute.Url) == 0 {
-		actionToExecute.Url = ce.baseUrl
+	if len(messageToSend.Url) == 0 {
+		messageToSend.Url = ce.baseUrl
 	}
-	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
-		actionToExecute.ContentType(ce.contentType)
+	if len(messageToSend.Headers) == 0 || len(messageToSend.Headers[constants.ContentTypeHeaderName]) == 0 {
+		messageToSend.ContentType(ce.contentType)
 	}
 
-	return actionToExecute
+	return messageToSend
 }
 
-// put missing data into a receive action
-func (ce *Endpoint) getReceiveActionToExecute(action *message.Action) *message.Action {
-	actionToExecute := action.Clone()
+// put missing data into message to receive
+func (ce *Endpoint) getMessageToReceive(message *message.Message) *message.Message {
+	messageToReceive := message.Clone()
 
-	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
-		actionToExecute.ContentType(ce.contentType)
+	if len(messageToReceive.Headers) == 0 || len(messageToReceive.Headers[constants.ContentTypeHeaderName]) == 0 {
+		messageToReceive.ContentType(ce.contentType)
 	}
 
-	return actionToExecute
+	return messageToReceive
 }
 
-func buildRequest(prefix string, action *message.Action) (*http.Request, error) {
-	url := utils.BuildPath(action.Url, action.Path)
+func buildRequest(prefix string, message *message.Message) (*http.Request, error) {
+	url := utils.BuildPath(message.Url, message.Path)
 
-	req, err := http.NewRequest(action.Method, url, bytes.NewBufferString(action.MessagePayload))
+	req, err := http.NewRequest(message.Method, url, bytes.NewBufferString(message.MessagePayload))
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: error: %s", prefix, err))
 		return nil, err
 	}
 
-	for header, value := range action.Headers {
+	for header, value := range message.Headers {
 		req.Header.Set(header, value)
 	}
 
 	qParams := req.URL.Query()
-	for key, value := range action.QueryParams {
+	for key, value := range message.QueryParams {
 		qParams.Add(key, value)
 	}
 	req.URL.RawQuery = qParams.Encode()
