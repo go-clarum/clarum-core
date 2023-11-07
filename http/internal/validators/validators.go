@@ -1,10 +1,12 @@
-package http
+package validators
 
 import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/arrays"
-	clmStrings "github.com/goclarum/clarum/core/validators/strings"
+	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
+	"github.com/goclarum/clarum/http/constants"
+	"github.com/goclarum/clarum/http/message"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,7 +15,7 @@ import (
 	"testing"
 )
 
-func validateHttpHeaders(t *testing.T, logPrefix string, actionToExecute *Action, headers http.Header) {
+func ValidateHttpHeaders(t *testing.T, logPrefix string, actionToExecute *message.Action, headers http.Header) {
 	if err := validateHeaders(actionToExecute, headers); err != nil {
 		t.Errorf("%s: %s", logPrefix, err)
 	} else {
@@ -21,8 +23,8 @@ func validateHttpHeaders(t *testing.T, logPrefix string, actionToExecute *Action
 	}
 }
 
-func validateHeaders(action *Action, headers http.Header) error {
-	for header, expectedValue := range action.headers {
+func validateHeaders(action *message.Action, headers http.Header) error {
+	for header, expectedValue := range action.Headers {
 		if receivedValue := headers.Get(header); expectedValue != receivedValue {
 			return errors.New(fmt.Sprintf("Validation error: header <%s> mismatch. Expected [%s] but received [%s]",
 				header, expectedValue, receivedValue))
@@ -32,7 +34,7 @@ func validateHeaders(action *Action, headers http.Header) error {
 	return nil
 }
 
-func validateHttpQueryParams(t *testing.T, logPrefix string, action *Action, url *url.URL) {
+func ValidateHttpQueryParams(t *testing.T, logPrefix string, action *message.Action, url *url.URL) {
 	if err := validateQueryParams(action, url.Query()); err != nil {
 		t.Errorf("%s: %s", logPrefix, err)
 	} else {
@@ -44,8 +46,8 @@ func validateHttpQueryParams(t *testing.T, logPrefix string, action *Action, url
 //
 //	-> validate that the param exists
 //	-> that the value matches
-func validateQueryParams(action *Action, params url.Values) error {
-	for param, expectedValue := range action.queryParams {
+func validateQueryParams(action *message.Action, params url.Values) error {
+	for param, expectedValue := range action.QueryParams {
 		if receivedValues, exists := params[param]; exists {
 			if !arrays.Contains(receivedValues, expectedValue) {
 				return errors.New(fmt.Sprintf("Validation error: query param <%s> values mismatch. Expected [%v] but received [%s]",
@@ -59,18 +61,18 @@ func validateQueryParams(action *Action, params url.Values) error {
 	return nil
 }
 
-func validateHttpStatusCode(t *testing.T, logPrefix string, action *Action, statusCode int) {
-	if statusCode != action.statusCode {
-		t.Errorf("%s: validation error: HTTP status mismatch. Expected [%d] but received [%d]", logPrefix, action.statusCode, statusCode)
+func ValidateHttpStatusCode(t *testing.T, logPrefix string, action *message.Action, statusCode int) {
+	if statusCode != action.StatusCode {
+		t.Errorf("%s: validation error: HTTP status mismatch. Expected [%d] but received [%d]", logPrefix, action.StatusCode, statusCode)
 	} else {
 		slog.Debug(fmt.Sprintf("%s: HTTP status validation successful", logPrefix))
 	}
 }
 
-func validateHttpBody(t *testing.T, logPrefix string, action *Action, body io.ReadCloser) {
+func ValidateHttpBody(t *testing.T, logPrefix string, action *message.Action, body io.ReadCloser) {
 	defer closeBody(logPrefix, body)
 
-	if clmStrings.IsBlank(action.payload) {
+	if clarumstrings.IsBlank(action.MessagePayload) {
 		slog.Debug(fmt.Sprintf("%s: action payload is empty. No body validation will be done", logPrefix))
 		return
 	}
@@ -93,16 +95,16 @@ func closeBody(logPrefix string, body io.ReadCloser) {
 	}
 }
 
-func validatePayload(action *Action, payload []byte) error {
-	contentTypeHeader := action.headers[ContentTypeHeaderName]
+func validatePayload(action *message.Action, payload []byte) error {
+	contentTypeHeader := action.Headers[constants.ContentTypeHeaderName]
 	receivedPayload := string(payload)
 
 	// we let the action decide what kind of validation we do
-	if strings.Contains(contentTypeHeader, ContentTypeJsonHeader) {
+	if strings.Contains(contentTypeHeader, constants.ContentTypeJsonHeader) {
 		// do json validation
-	} else if action.payload != receivedPayload { // plain text validation
+	} else if action.MessagePayload != receivedPayload { // plain text validation
 		return errors.New(fmt.Sprintf("Validation error: payload missmatch. Expected [%s] but received [%s]",
-			action.payload, receivedPayload))
+			action.MessagePayload, receivedPayload))
 	}
 
 	return nil

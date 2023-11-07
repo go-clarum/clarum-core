@@ -1,4 +1,4 @@
-package http
+package message
 
 import (
 	"maps"
@@ -7,28 +7,28 @@ import (
 )
 
 func TestHTTPVerbs(t *testing.T) {
-	if Get().method != http.MethodGet {
+	if Get().Method != http.MethodGet {
 		t.Errorf("Expected %s.", http.MethodGet)
 	}
-	if Head().method != http.MethodHead {
+	if Head().Method != http.MethodHead {
 		t.Errorf("Expected %s.", http.MethodHead)
 	}
-	if Post().method != http.MethodPost {
+	if Post().Method != http.MethodPost {
 		t.Errorf("Expected %s.", http.MethodPost)
 	}
-	if Put().method != http.MethodPut {
+	if Put().Method != http.MethodPut {
 		t.Errorf("Expected %s.", http.MethodPut)
 	}
-	if Delete().method != http.MethodDelete {
+	if Delete().Method != http.MethodDelete {
 		t.Errorf("Expected %s.", http.MethodDelete)
 	}
-	if Options().method != http.MethodOptions {
+	if Options().Method != http.MethodOptions {
 		t.Errorf("Expected %s.", http.MethodOptions)
 	}
-	if Trace().method != http.MethodTrace {
+	if Trace().Method != http.MethodTrace {
 		t.Errorf("Expected %s.", http.MethodTrace)
 	}
-	if Patch().method != http.MethodPatch {
+	if Patch().Method != http.MethodPatch {
 		t.Errorf("Expected %s.", http.MethodPatch)
 	}
 }
@@ -40,10 +40,10 @@ func TestBuilder(t *testing.T) {
 		Payload("batman!")
 
 	expected := Action{
-		method:  http.MethodPost,
-		baseUrl: "http//localhost:8080",
-		path:    "my/api/v0",
-		payload: "batman!",
+		Method:         http.MethodPost,
+		Url:            "http//localhost:8080",
+		Path:           "my/api/v0",
+		MessagePayload: "batman!",
 	}
 
 	if actionsEqual(actual, &expected) {
@@ -91,17 +91,17 @@ func TestOverwriteWith(t *testing.T) {
 
 func actionsEqual(a1 *Action, a2 *Action) bool {
 
-	if a1.method != a2.method {
+	if a1.Method != a2.Method {
 		return false
-	} else if a1.baseUrl != a2.baseUrl {
+	} else if a1.Url != a2.Url {
 		return false
-	} else if a1.path != a2.path {
+	} else if a1.Path != a2.Path {
 		return false
-	} else if !maps.Equal(a1.headers, a2.headers) {
+	} else if !maps.Equal(a1.Headers, a2.Headers) {
 		return false
-	} else if !maps.Equal(a1.queryParams, a2.queryParams) {
+	} else if !maps.Equal(a1.QueryParams, a2.QueryParams) {
 		return false
-	} else if a1.payload != a2.payload {
+	} else if a1.MessagePayload != a2.MessagePayload {
 		return false
 	}
 	return true

@@ -1,16 +1,21 @@
-package http
+package client
 
 import (
 	"bytes"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
+	"github.com/goclarum/clarum/http/constants"
+	"github.com/goclarum/clarum/http/internal/utils"
+	"github.com/goclarum/clarum/http/internal/validators"
+	"github.com/goclarum/clarum/http/message"
 	"io"
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 )
 
-type ClientEndpoint struct {
+type Endpoint struct {
 	name            string
 	baseUrl         string
 	contentType     string
@@ -18,7 +23,21 @@ type ClientEndpoint struct {
 	responseChannel chan *http.Response
 }
 
-func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
+func NewEndpoint(name string, baseUrl string, contentType string, timeout time.Duration) *Endpoint {
+	client := http.Client{
+		Timeout: timeout,
+	}
+
+	return &Endpoint{
+		name:            name,
+		baseUrl:         baseUrl,
+		contentType:     contentType,
+		client:          &client,
+		responseChannel: make(chan *http.Response),
+	}
+}
+
+func (ce *Endpoint) send(t *testing.T, action *message.Action) {
 	logPrefix := clientLogPrefix(ce.name)
 	slog.Debug(fmt.Sprintf("%s: action to send: %s", logPrefix, action.ToString()))
 	control.RunningActions.Add(1)
@@ -26,6 +45,7 @@ func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
 	go func() {
 		defer control.RunningActions.Done()
 
+		// from here
 		actionToExecute := ce.getSendActionToExecute(action)
 		slog.Debug(fmt.Sprintf("%s: executing action: %s", logPrefix, actionToExecute.ToString()))
 
@@ -33,8 +53,9 @@ func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
 		if err != nil {
 			t.Errorf("%s: canceled action. Error: %s", logPrefix, err)
 		}
+		//to here, move outside the goroutine and return error if t is nil
 
-		logOutgoingRequest(logPrefix, action.payload, req)
+		logOutgoingRequest(logPrefix, action.MessagePayload, req)
 		res, err := ce.client.Do(req)
 		logIncomingResponse(logPrefix, res)
 
@@ -48,7 +69,7 @@ func (ce *ClientEndpoint) Send(t *testing.T, action *Action) {
 	}()
 }
 
-func (ce *ClientEndpoint) Receive(t *testing.T, action *Action) {
+func (ce *Endpoint) receive(t *testing.T, action *message.Action) {
 	logPrefix := clientLogPrefix(ce.name)
 	slog.Debug(fmt.Sprintf("%s: action to receive: %s", logPrefix, action.ToString()))
 
@@ -57,19 +78,19 @@ func (ce *ClientEndpoint) Receive(t *testing.T, action *Action) {
 	actionToExecute := ce.getReceiveActionToExecute(action)
 	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", logPrefix, actionToExecute.ToString()))
 
-	validateHttpStatusCode(t, logPrefix, actionToExecute, response.StatusCode)
-	validateHttpHeaders(t, logPrefix, actionToExecute, response.Header)
-	validateHttpBody(t, logPrefix, actionToExecute, response.Body)
+	validators.ValidateHttpStatusCode(t, logPrefix, actionToExecute, response.StatusCode)
+	validators.ValidateHttpHeaders(t, logPrefix, actionToExecute, response.Header)
+	validators.ValidateHttpBody(t, logPrefix, actionToExecute, response.Body)
 }
 
 // put missing data into a send action
-func (ce *ClientEndpoint) getSendActionToExecute(action *Action) *Action {
+func (ce *Endpoint) getSendActionToExecute(action *message.Action) *message.Action {
 	actionToExecute := action.Clone()
 
-	if len(actionToExecute.baseUrl) == 0 {
-		actionToExecute.baseUrl = ce.baseUrl
+	if len(actionToExecute.Url) == 0 {
+		actionToExecute.Url = ce.baseUrl
 	}
-	if len(actionToExecute.headers) == 0 || len(actionToExecute.headers[ContentTypeHeaderName]) == 0 {
+	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
 		actionToExecute.ContentType(ce.contentType)
 	}
 
@@ -77,31 +98,31 @@ func (ce *ClientEndpoint) getSendActionToExecute(action *Action) *Action {
 }
 
 // put missing data into a receive action
-func (ce *ClientEndpoint) getReceiveActionToExecute(action *Action) *Action {
+func (ce *Endpoint) getReceiveActionToExecute(action *message.Action) *message.Action {
 	actionToExecute := action.Clone()
 
-	if len(actionToExecute.headers) == 0 || len(actionToExecute.headers[ContentTypeHeaderName]) == 0 {
+	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
 		actionToExecute.ContentType(ce.contentType)
 	}
 
 	return actionToExecute
 }
 
-func buildRequest(prefix string, action *Action) (*http.Request, error) {
-	url := BuildPath(action.baseUrl, action.path)
+func buildRequest(prefix string, action *message.Action) (*http.Request, error) {
+	url := utils.BuildPath(action.Url, action.Path)
 
-	req, err := http.NewRequest(action.method, url, bytes.NewBufferString(action.payload))
+	req, err := http.NewRequest(action.Method, url, bytes.NewBufferString(action.MessagePayload))
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: error: %s", prefix, err))
 		return nil, err
 	}
 
-	for header, value := range action.headers {
+	for header, value := range action.Headers {
 		req.Header.Set(header, value)
 	}
 
 	qParams := req.URL.Query()
-	for key, value := range action.queryParams {
+	for key, value := range action.QueryParams {
 		qParams.Add(key, value)
 	}
 	req.URL.RawQuery = qParams.Encode()

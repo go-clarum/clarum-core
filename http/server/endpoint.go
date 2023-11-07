@@ -1,4 +1,4 @@
-package http
+package server
 
 import (
 	"bytes"
@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
+	"github.com/goclarum/clarum/http/constants"
+	"github.com/goclarum/clarum/http/internal/validators"
+	"github.com/goclarum/clarum/http/message"
 	"io"
 	"log/slog"
 	"net"
@@ -16,23 +19,44 @@ import (
 
 const contextNameKey = "endpointContext"
 
-type ServerEndpoint struct {
-	port           uint
+type Endpoint struct {
 	name           string
+	port           uint
 	contentType    string
 	server         *http.Server
 	context        *context.Context
 	requestChannel chan *http.Request
-	sendChannel    chan Action
+	sendChannel    chan message.Action
 }
 
 type endpointContext struct {
 	endpointName   string
 	requestChannel chan *http.Request
-	sendChannel    chan Action
+	sendChannel    chan message.Action
 }
 
-func (se *ServerEndpoint) Receive(t *testing.T, action *Action) {
+func NewServerEndpoint(name string, port uint, contentType string, timeout time.Duration) *Endpoint {
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	sendChannel := make(chan message.Action)
+	requestChannel := make(chan *http.Request)
+
+	se := &Endpoint{
+		name:           name,
+		port:           port,
+		contentType:    contentType,
+		context:        &ctx,
+		sendChannel:    sendChannel,
+		requestChannel: requestChannel,
+	}
+
+	// feature: start automatically = true/false; to simulate connection errors
+	se.start(ctx, cancelCtx, timeout)
+
+	return se
+}
+
+// this Method is blocking, until a request is received
+func (se *Endpoint) receive(t *testing.T, action *message.Action) {
 	logPrefix := serverLogPrefix(se.name)
 	slog.Debug(fmt.Sprintf("%s: action to receive: %s", logPrefix, action.ToString()))
 	actionToExecute := se.getActionToExecute(action)
@@ -40,27 +64,28 @@ func (se *ServerEndpoint) Receive(t *testing.T, action *Action) {
 	request := <-se.requestChannel
 	slog.Debug(fmt.Sprintf("%s: executing validation action: %s", logPrefix, actionToExecute.ToString()))
 
-	validateHttpHeaders(t, logPrefix, actionToExecute, request.Header)
-	validateHttpQueryParams(t, logPrefix, actionToExecute, request.URL)
-	validateHttpBody(t, logPrefix, actionToExecute, request.Body)
+	validators.ValidateHttpHeaders(t, logPrefix, actionToExecute, request.Header)
+	validators.ValidateHttpQueryParams(t, logPrefix, actionToExecute, request.URL)
+	validators.ValidateHttpBody(t, logPrefix, actionToExecute, request.Body)
 }
 
-func (se *ServerEndpoint) Send(action *Action) {
+func (se *Endpoint) send(action *message.Action) {
 	actionToExecute := se.getActionToExecute(action)
+	// can we refactor this to send the response instead of the action?
 	se.sendChannel <- *actionToExecute
 }
 
-func (ce *ServerEndpoint) getActionToExecute(action *Action) *Action {
+func (ce *Endpoint) getActionToExecute(action *message.Action) *message.Action {
 	actionToExecute := action.Clone()
 
-	if len(actionToExecute.headers) == 0 || len(actionToExecute.headers[ContentTypeHeaderName]) == 0 {
+	if len(actionToExecute.Headers) == 0 || len(actionToExecute.Headers[constants.ContentTypeHeaderName]) == 0 {
 		actionToExecute.ContentType(ce.contentType)
 	}
 
 	return actionToExecute
 }
 
-func (se *ServerEndpoint) start(ctx context.Context, cancelCtx context.CancelFunc, timeout time.Duration) {
+func (se *Endpoint) start(ctx context.Context, cancelCtx context.CancelFunc, timeout time.Duration) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", requestHandler)
 
@@ -111,14 +136,17 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	ctx.requestChannel <- request
 	sendAction := <-ctx.sendChannel
 
-	for header, value := range sendAction.headers {
+	for header, value := range sendAction.Headers {
 		resWriter.Header().Set(header, value)
 	}
 
-	resWriter.WriteHeader(sendAction.statusCode)
+	resWriter.WriteHeader(sendAction.StatusCode)
 
-	io.WriteString(resWriter, sendAction.payload)
-	logOutgoingResponse(logPrefix, sendAction.statusCode, sendAction.payload, resWriter)
+	_, err := io.WriteString(resWriter, sendAction.MessagePayload)
+	if err != nil {
+		slog.Error(fmt.Sprintf("%s: could not write response body: %s", logPrefix, err))
+	}
+	logOutgoingResponse(logPrefix, sendAction.StatusCode, sendAction.MessagePayload, resWriter)
 }
 
 // we read the body 'as is' for logging, after which we put it back into the request

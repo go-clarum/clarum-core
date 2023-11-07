@@ -1,6 +1,8 @@
-package http
+package validators
 
 import (
+	"github.com/goclarum/clarum/http/constants"
+	"github.com/goclarum/clarum/http/message"
 	"net/http"
 	"testing"
 )
@@ -26,13 +28,13 @@ func TestValidateHeadersError(t *testing.T) {
 		t.Errorf("Header validation error expected, but got none")
 	}
 
-	if err.Error() != "validation error: header <ETag> mismatch" {
-		t.Errorf("Header validation error mismatch")
+	if err.Error() != "Validation error: header <ETag> mismatch. Expected [1234] but received [33a64df551425fcc55e4d42a148795d9f25f89d4]" {
+		t.Errorf("Header validation error message is unexpected")
 	}
 }
 
 func TestValidateQueryParamsOK(t *testing.T) {
-	action := Get("myPath").
+	action := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -48,7 +50,7 @@ func TestValidateQueryParamsOK(t *testing.T) {
 }
 
 func TestValidateQueryParamsParamMismatch(t *testing.T) {
-	action := Get("myPath").
+	action := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -63,13 +65,13 @@ func TestValidateQueryParamsParamMismatch(t *testing.T) {
 		t.Errorf("Query param validation error expected, but got none")
 	}
 
-	if err.Error() != "validation error: query param <param2> missing" {
-		t.Errorf("Query param validation error mismatch")
+	if err.Error() != "Validation error: query param <param2> missing" {
+		t.Errorf("Query param validation error message is unexpected")
 	}
 }
 
 func TestValidateQueryParamsValueMismatch(t *testing.T) {
-	action := Get("myPath").
+	action := message.Get("myPath").
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2")
 
@@ -84,13 +86,13 @@ func TestValidateQueryParamsValueMismatch(t *testing.T) {
 		t.Errorf("Query param validation error expected, but got none")
 	}
 
-	if err.Error() != "validation error: query params mismatch: expected [value22], actual value2" {
-		t.Errorf("Query param validation error mismatch")
+	if err.Error() != "Validation error: query param <param2> values mismatch. Expected [value2] but received [[value22]]" {
+		t.Errorf("Query param validation error message is unexpected")
 	}
 }
 
-func createTestActionWithHeaders() *Action {
-	return Post("myPath").
+func createTestActionWithHeaders() *message.Action {
+	return message.Post("myPath").
 		Header("Connection", "keep-alive").
 		ContentType("application/json").
 		Authorization("Bearer 0b79bab50daca910b000d4f1a2b675d604257e42").
@@ -100,9 +102,9 @@ func createTestActionWithHeaders() *Action {
 func createRealRequest() *http.Request {
 	req, _ := http.NewRequest(http.MethodPost, "myPath", nil)
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set(ContentTypeHeaderName, "application/json")
-	req.Header.Set(AuthorizationHeaderName, "Bearer 0b79bab50daca910b000d4f1a2b675d604257e42")
-	req.Header.Set(ETagHeaderName, "33a64df551425fcc55e4d42a148795d9f25f89d4")
+	req.Header.Set(constants.ContentTypeHeaderName, "application/json")
+	req.Header.Set(constants.AuthorizationHeaderName, "Bearer 0b79bab50daca910b000d4f1a2b675d604257e42")
+	req.Header.Set(constants.ETagHeaderName, "33a64df551425fcc55e4d42a148795d9f25f89d4")
 
 	return req
 }

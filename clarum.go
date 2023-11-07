@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/goclarum/clarum/core/config"
 	"github.com/goclarum/clarum/core/control"
-	"github.com/goclarum/clarum/http"
+	clarumhttp "github.com/goclarum/clarum/http"
 	"log/slog"
 	"os"
 )
 
 // Entry point for HTTP endpoints configuration
-func Http() http.Builder {
-	return &http.EndpointBuilder{}
+func Http() *clarumhttp.EndpointBuilder {
+	return &clarumhttp.EndpointBuilder{}
 }
 
 func Setup() {
