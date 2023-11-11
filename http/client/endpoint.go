@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
 	"github.com/goclarum/clarum/http/constants"
@@ -11,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"testing"
 	"time"
 )
 
@@ -20,7 +20,12 @@ type Endpoint struct {
 	baseUrl         string
 	contentType     string
 	client          *http.Client
-	responseChannel chan *http.Response
+	responseChannel chan *responsePair
+}
+
+type responsePair struct {
+	response *http.Response
+	error    error
 }
 
 func NewEndpoint(name string, baseUrl string, contentType string, timeout time.Duration) *Endpoint {
@@ -33,76 +38,101 @@ func NewEndpoint(name string, baseUrl string, contentType string, timeout time.D
 		baseUrl:         baseUrl,
 		contentType:     contentType,
 		client:          &client,
-		responseChannel: make(chan *http.Response),
+		responseChannel: make(chan *responsePair),
 	}
 }
 
-func (ce *Endpoint) send(t *testing.T, message *message.Message) {
-	logPrefix := clientLogPrefix(ce.name)
+func (endpoint *Endpoint) send(message *message.Message) error {
+	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to send: %s", logPrefix, message.ToString()))
+
+	messageToSend := endpoint.getMessageToSend(message)
+	slog.Debug(fmt.Sprintf("%s: sending message: %s", logPrefix, messageToSend.ToString()))
+
+	req, err := buildRequest(endpoint.name, messageToSend)
+	// we return error here directly and not in the goroutine below
+	// this way we can signal to the test synchronously that there was an error
+	if err != nil {
+		errorMessage := fmt.Sprintf("%s: canceled message. Error: %s", logPrefix, err)
+		slog.Error(errorMessage)
+		return errors.New(errorMessage)
+	}
+
 	control.RunningActions.Add(1)
 
 	go func() {
 		defer control.RunningActions.Done()
 
-		// from here
-		messageToSend := ce.getMessageToSend(message)
-		slog.Debug(fmt.Sprintf("%s: sending message: %s", logPrefix, messageToSend.ToString()))
-
-		req, err := buildRequest(ce.name, messageToSend)
-		if err != nil {
-			t.Errorf("%s: canceled message. Error: %s", logPrefix, err)
-		}
-		//to here, move outside the goroutine and return error if t is nil
-
 		logOutgoingRequest(logPrefix, message.MessagePayload, req)
-		res, err := ce.client.Do(req)
-		logIncomingResponse(logPrefix, res)
+		res, err := endpoint.client.Do(req)
 
-		// TODO: handle technical errors
-		//  check: socket connection, connection refused, connection timeout
+		// we log the error here directly, but will do error handling downstream
 		if err != nil {
-			t.Errorf("%s: error on response: %s", logPrefix, err)
+			slog.Error(fmt.Sprintf("%s: error on response: %s", logPrefix, err))
+		} else {
+			logIncomingResponse(logPrefix, res)
 		}
 
-		ce.responseChannel <- res
+		endpoint.responseChannel <- &responsePair{
+			response: res,
+			error:    err,
+		}
 	}()
+
+	return nil
 }
 
-func (ce *Endpoint) receive(t *testing.T, message *message.Message) {
-	logPrefix := clientLogPrefix(ce.name)
+func (endpoint *Endpoint) receive(message *message.Message) error {
+	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive: %s", logPrefix, message.ToString()))
 
-	response := <-ce.responseChannel
+	responsePair := <-endpoint.responseChannel
 
-	messageToReceive := ce.getMessageToReceive(message)
+	// TODO: handle technical errors
+	//  check: socket connection, connection refused, connection timeout
+	if responsePair.error != nil {
+		errorMessage := fmt.Sprintf("%s: error while receiving response: %s", logPrefix, responsePair.error)
+		slog.Error(errorMessage)
+		return errors.New(errorMessage)
+	}
+
+	messageToReceive := endpoint.getMessageToReceive(message)
 	slog.Debug(fmt.Sprintf("%s: validating message: %s", logPrefix, messageToReceive.ToString()))
 
-	validators.ValidateHttpStatusCode(t, logPrefix, messageToReceive, response.StatusCode)
-	validators.ValidateHttpHeaders(t, logPrefix, messageToReceive, response.Header)
-	validators.ValidateHttpBody(t, logPrefix, messageToReceive, response.Body)
+	// TODO: check errors.Join();
+	if err := validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode); err != nil {
+		return err
+	}
+	if err := validators.ValidateHttpHeaders(logPrefix, messageToReceive, responsePair.response.Header); err != nil {
+		return err
+	}
+	if err := validators.ValidateHttpBody(logPrefix, messageToReceive, responsePair.response.Body); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// put missing data into a message to send
-func (ce *Endpoint) getMessageToSend(message *message.Message) *message.Message {
+// Put missing data into a message to send: baseUrl & ContentType Header
+func (endpoint *Endpoint) getMessageToSend(message *message.Message) *message.Message {
 	messageToSend := message.Clone()
 
 	if len(messageToSend.Url) == 0 {
-		messageToSend.Url = ce.baseUrl
+		messageToSend.Url = endpoint.baseUrl
 	}
 	if len(messageToSend.Headers) == 0 || len(messageToSend.Headers[constants.ContentTypeHeaderName]) == 0 {
-		messageToSend.ContentType(ce.contentType)
+		messageToSend.ContentType(endpoint.contentType)
 	}
 
 	return messageToSend
 }
 
-// put missing data into message to receive
-func (ce *Endpoint) getMessageToReceive(message *message.Message) *message.Message {
+// Put missing data into message to receive: ContentType Header
+func (endpoint *Endpoint) getMessageToReceive(message *message.Message) *message.Message {
 	messageToReceive := message.Clone()
 
 	if len(messageToReceive.Headers) == 0 || len(messageToReceive.Headers[constants.ContentTypeHeaderName]) == 0 {
-		messageToReceive.ContentType(ce.contentType)
+		messageToReceive.ContentType(endpoint.contentType)
 	}
 
 	return messageToReceive
