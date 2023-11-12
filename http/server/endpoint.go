@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"testing"
 	"time"
 )
 
@@ -56,48 +55,48 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 }
 
 // this Method is blocking, until a request is received
-func (se *Endpoint) receive(t *testing.T, message *message.Message) {
-	logPrefix := serverLogPrefix(se.name)
-	slog.Debug(fmt.Sprintf("%s: message to receive: %s", logPrefix, message.ToString()))
-	messageToReceive := se.getFinalMessage(message)
+func (endpoint *Endpoint) receive(message *message.Message) error {
+	logPrefix := serverLogPrefix(endpoint.name)
+	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
+	messageToReceive := endpoint.getFinalMessage(message)
 
-	request := <-se.requestChannel
-	slog.Debug(fmt.Sprintf("%s: validating message: %s", logPrefix, messageToReceive.ToString()))
+	request := <-endpoint.requestChannel
+	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
-	validators.ValidateHttpHeaders(t, logPrefix, messageToReceive, request.Header)
-	validators.ValidateHttpQueryParams(t, logPrefix, messageToReceive, request.URL)
-	validators.ValidateHttpBody(t, logPrefix, messageToReceive, request.Body)
+	return errors.Join(
+		validators.ValidateHttpHeaders(logPrefix, messageToReceive, request.Header),
+		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, request.URL),
+		validators.ValidateHttpBody(logPrefix, messageToReceive, request.Body))
 }
 
-func (se *Endpoint) send(message *message.Message) {
-	messageToSend := se.getFinalMessage(message)
-	// can we refactor this to send the response instead of the message?
-	se.sendChannel <- *messageToSend
+func (endpoint *Endpoint) send(message *message.Message) {
+	messageToSend := endpoint.getFinalMessage(message)
+	endpoint.sendChannel <- *messageToSend
 }
 
-func (ce *Endpoint) getFinalMessage(message *message.Message) *message.Message {
+func (endpoint *Endpoint) getFinalMessage(message *message.Message) *message.Message {
 	finalMessage := message.Clone()
 
 	if len(finalMessage.Headers) == 0 || len(finalMessage.Headers[constants.ContentTypeHeaderName]) == 0 {
-		finalMessage.ContentType(ce.contentType)
+		finalMessage.ContentType(endpoint.contentType)
 	}
 
 	return finalMessage
 }
 
-func (se *Endpoint) start(ctx context.Context, cancelCtx context.CancelFunc, timeout time.Duration) {
+func (endpoint *Endpoint) start(ctx context.Context, cancelCtx context.CancelFunc, timeout time.Duration) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", requestHandler)
 
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", se.port),
+		Addr:         fmt.Sprintf(":%d", endpoint.port),
 		Handler:      mux,
 		WriteTimeout: timeout,
 		BaseContext: func(l net.Listener) context.Context {
 			endpointContext := &endpointContext{
-				endpointName:   se.name,
-				requestChannel: se.requestChannel,
-				sendChannel:    se.sendChannel,
+				endpointName:   endpoint.name,
+				requestChannel: endpoint.requestChannel,
+				sendChannel:    endpoint.sendChannel,
 			}
 			ctx = context.WithValue(ctx, contextNameKey, endpointContext)
 			return ctx
@@ -105,26 +104,29 @@ func (se *Endpoint) start(ctx context.Context, cancelCtx context.CancelFunc, tim
 	}
 
 	go func() {
+		logPrefix := serverLogPrefix(endpoint.name)
 		if err := server.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				fmt.Println(fmt.Sprintf("%s: closed", serverLogPrefix(se.name)))
+				fmt.Println(fmt.Sprintf("%s: closed", logPrefix))
 			} else {
-				fmt.Println(fmt.Sprintf("%s: error: %s", serverLogPrefix(se.name), err))
+				fmt.Println(fmt.Sprintf("%s: error - %s", logPrefix, err))
 			}
 		} else {
-			fmt.Println(fmt.Sprintf("%s: closed: %s", serverLogPrefix(se.name), err))
+			fmt.Println(fmt.Sprintf("%s: closed - %s", logPrefix, err))
 		}
 
 		cancelCtx()
 	}()
 
-	se.server = server
+	endpoint.server = server
 }
 
-// The requestHandler is started on request in, reports the request so that it can be validated
-// after which is blocked until the send method prepares a response. This way we can tell it
-// inside the test, when to send the response.
-// The handler blocks until a timeout is triggered // TODO: check how timeouts are handled
+// The requestHandler is started when the server receives a request.
+// The request is sent to the requestChannel to be picked up by a test action (validation).
+// After sending the request to the channel, the handler is blocked until the send() test action
+// provides a response message. This way we can control, inside the test, when a response will be sent.
+// The handler blocks until a timeout is triggered
+// TODO: check how timeouts are handled
 func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	control.RunningActions.Add(1)
 	defer control.RunningActions.Done()
@@ -144,7 +146,7 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 
 	_, err := io.WriteString(resWriter, messageToSend.MessagePayload)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: could not write response body: %s", logPrefix, err))
+		slog.Error(fmt.Sprintf("%s: could not write response body - %s", logPrefix, err))
 	}
 	logOutgoingResponse(logPrefix, messageToSend.StatusCode, messageToSend.MessagePayload, resWriter)
 }
@@ -157,13 +159,13 @@ func logIncomingRequest(logPrefix string, request *http.Request) {
 
 	err := request.Body.Close()
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: could not read request body: %s", logPrefix, err))
+		slog.Error(fmt.Sprintf("%s: could not read request body - %s", logPrefix, err))
 	} else {
 		request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		bodyString = string(bodyBytes)
 	}
 
-	slog.Info(fmt.Sprintf("%s: received request: ["+
+	slog.Info(fmt.Sprintf("%s: received request ["+
 		"method: %s, "+
 		"url: %s, "+
 		"headers: %s, "+
@@ -173,7 +175,7 @@ func logIncomingRequest(logPrefix string, request *http.Request) {
 }
 
 func logOutgoingResponse(prefix string, statusCode int, payload string, res http.ResponseWriter) {
-	slog.Info(fmt.Sprintf("%s: sending response: ["+
+	slog.Info(fmt.Sprintf("%s: sending response ["+
 		"status: %d, "+
 		"headers: %s, "+
 		"payload: %s"+

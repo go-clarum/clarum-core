@@ -12,7 +12,7 @@ func TestGet(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Get())
-	testServer.In(t).Send().
+	testServer.Send().
 		Message(message.Response(http.StatusOK).Payload("my test"))
 
 	testClient.In(t).Receive().
@@ -28,8 +28,8 @@ func TestPost(t *testing.T) {
 	testServer.In(t).Receive().
 		Message(message.Post().
 			QueryParam("myParam", "myValue1").
-			Payload("my plain text payload2"))
-	testServer.In(t).Send().
+			Payload("my plain text payload"))
+	testServer.Send().
 		Message(message.Response(http.StatusOK).ContentType("text/xml"))
 
 	testClient.In(t).Receive().

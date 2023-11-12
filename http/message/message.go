@@ -173,7 +173,7 @@ func (message *Message) ToString() string {
 		"["+
 			"Method: %s, "+
 			"StatusCode: %s, "+
-			"Url: %s, "+
+			"BaseUrl: %s, "+
 			"Path: '%s', "+
 			"Headers: %s, "+
 			"QueryParams: %s, "+

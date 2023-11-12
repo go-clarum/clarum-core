@@ -1,7 +1,7 @@
 package http
 
 import (
-	clrm "github.com/goclarum/clarum/http"
+	"github.com/goclarum/clarum/http/message"
 	"net/http"
 	"testing"
 )
@@ -13,19 +13,24 @@ import (
 // 4. test query param value validation inbound only
 
 func TestGet(t *testing.T) {
-	Client1.Send(t, clrm.Get())
+	Client1.In(t).Send().Message(message.Get())
 
-	Server1.Receive(t, clrm.Get())
-	Server1.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))
+	Server1.In(t).Receive().Message(message.Get())
+	Server1.Send().
+		Message(message.Response(http.StatusOK).ContentType("text/xml"))
 
-	Client1.Receive(t, clrm.Response(http.StatusOK))
+	Client1.In(t).Receive().Message(message.Response(http.StatusBadRequest).Payload("something"))
 }
 
 func TestGet2(t *testing.T) {
-	Client1.Send(t, clrm.Get().QueryParam("myParam", "myValue1"))
+	Client1.In(t).Send().
+		Message(message.Get().QueryParam("myParam", "myValue1"))
 
-	Server1.Receive(t, clrm.Get().QueryParam("myParam", "myValue2"))
-	Server1.Send(clrm.Response(http.StatusOK).ContentType("text/xml"))
+	Server1.In(t).Receive().
+		Message(message.Get().QueryParam("myParam", "myValue2"))
+	Server1.Send().
+		Message(message.Response(http.StatusOK).ContentType("text/xml"))
 
-	Client1.Receive(t, clrm.Response(http.StatusOK).ContentType("text/xml"))
+	Client1.In(t).Receive().
+		Message(message.Response(http.StatusOK).ContentType("text/xml"))
 }

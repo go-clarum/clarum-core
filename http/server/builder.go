@@ -4,10 +4,6 @@ import (
 	"time"
 )
 
-func NewEndpointBuilder() *EndpointBuilder {
-	return &EndpointBuilder{}
-}
-
 type EndpointBuilder struct {
 	contentType string
 	port        uint
@@ -15,26 +11,30 @@ type EndpointBuilder struct {
 	timeout     time.Duration
 }
 
-func (seb *EndpointBuilder) Timeout(timeout time.Duration) *EndpointBuilder {
-	seb.timeout = timeout
-	return seb
+func NewEndpointBuilder() *EndpointBuilder {
+	return &EndpointBuilder{}
 }
 
-func (seb *EndpointBuilder) Name(name string) *EndpointBuilder {
-	seb.name = name
-	return seb
+func (builder *EndpointBuilder) Timeout(timeout time.Duration) *EndpointBuilder {
+	builder.timeout = timeout
+	return builder
 }
 
-func (seb *EndpointBuilder) Port(port uint) *EndpointBuilder {
-	seb.port = port
-	return seb
+func (builder *EndpointBuilder) Name(name string) *EndpointBuilder {
+	builder.name = name
+	return builder
 }
 
-func (seb *EndpointBuilder) ContentType(contentType string) *EndpointBuilder {
-	seb.contentType = contentType
-	return seb
+func (builder *EndpointBuilder) Port(port uint) *EndpointBuilder {
+	builder.port = port
+	return builder
 }
 
-func (seb *EndpointBuilder) Build() *Endpoint {
-	return NewServerEndpoint(seb.name, seb.port, seb.contentType, seb.timeout)
+func (builder *EndpointBuilder) ContentType(contentType string) *EndpointBuilder {
+	builder.contentType = contentType
+	return builder
+}
+
+func (builder *EndpointBuilder) Build() *Endpoint {
+	return NewServerEndpoint(builder.name, builder.port, builder.contentType, builder.timeout)
 }

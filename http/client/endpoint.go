@@ -44,16 +44,16 @@ func NewEndpoint(name string, baseUrl string, contentType string, timeout time.D
 
 func (endpoint *Endpoint) send(message *message.Message) error {
 	logPrefix := clientLogPrefix(endpoint.name)
-	slog.Debug(fmt.Sprintf("%s: message to send: %s", logPrefix, message.ToString()))
+	slog.Debug(fmt.Sprintf("%s: message to send %s", logPrefix, message.ToString()))
 
 	messageToSend := endpoint.getMessageToSend(message)
-	slog.Debug(fmt.Sprintf("%s: sending message: %s", logPrefix, messageToSend.ToString()))
+	slog.Debug(fmt.Sprintf("%s: will send message %s", logPrefix, messageToSend.ToString()))
 
 	req, err := buildRequest(endpoint.name, messageToSend)
 	// we return error here directly and not in the goroutine below
 	// this way we can signal to the test synchronously that there was an error
 	if err != nil {
-		errorMessage := fmt.Sprintf("%s: canceled message. Error: %s", logPrefix, err)
+		errorMessage := fmt.Sprintf("%s: canceled message - %s", logPrefix, err)
 		slog.Error(errorMessage)
 		return errors.New(errorMessage)
 	}
@@ -68,7 +68,7 @@ func (endpoint *Endpoint) send(message *message.Message) error {
 
 		// we log the error here directly, but will do error handling downstream
 		if err != nil {
-			slog.Error(fmt.Sprintf("%s: error on response: %s", logPrefix, err))
+			slog.Error(fmt.Sprintf("%s: error on response - %s", logPrefix, err))
 		} else {
 			logIncomingResponse(logPrefix, res)
 		}
@@ -84,33 +84,25 @@ func (endpoint *Endpoint) send(message *message.Message) error {
 
 func (endpoint *Endpoint) receive(message *message.Message) error {
 	logPrefix := clientLogPrefix(endpoint.name)
-	slog.Debug(fmt.Sprintf("%s: message to receive: %s", logPrefix, message.ToString()))
+	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 
 	responsePair := <-endpoint.responseChannel
 
 	// TODO: handle technical errors
 	//  check: socket connection, connection refused, connection timeout
 	if responsePair.error != nil {
-		errorMessage := fmt.Sprintf("%s: error while receiving response: %s", logPrefix, responsePair.error)
+		errorMessage := fmt.Sprintf("%s: error while receiving response - %s", logPrefix, responsePair.error)
 		slog.Error(errorMessage)
 		return errors.New(errorMessage)
 	}
 
 	messageToReceive := endpoint.getMessageToReceive(message)
-	slog.Debug(fmt.Sprintf("%s: validating message: %s", logPrefix, messageToReceive.ToString()))
+	slog.Debug(fmt.Sprintf("%s: validating message %s", logPrefix, messageToReceive.ToString()))
 
-	// TODO: check errors.Join();
-	if err := validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode); err != nil {
-		return err
-	}
-	if err := validators.ValidateHttpHeaders(logPrefix, messageToReceive, responsePair.response.Header); err != nil {
-		return err
-	}
-	if err := validators.ValidateHttpBody(logPrefix, messageToReceive, responsePair.response.Body); err != nil {
-		return err
-	}
-
-	return nil
+	return errors.Join(
+		validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
+		validators.ValidateHttpHeaders(logPrefix, messageToReceive, responsePair.response.Header),
+		validators.ValidateHttpBody(logPrefix, messageToReceive, responsePair.response.Body))
 }
 
 // Put missing data into a message to send: baseUrl & ContentType Header
@@ -143,7 +135,7 @@ func buildRequest(prefix string, message *message.Message) (*http.Request, error
 
 	req, err := http.NewRequest(message.Method, url, bytes.NewBufferString(message.MessagePayload))
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: error: %s", prefix, err))
+		slog.Error(fmt.Sprintf("%s: error - %s", prefix, err))
 		return nil, err
 	}
 
@@ -161,7 +153,7 @@ func buildRequest(prefix string, message *message.Message) (*http.Request, error
 }
 
 func logOutgoingRequest(prefix string, payload string, req *http.Request) {
-	slog.Info(fmt.Sprintf("%s: sending request: ["+
+	slog.Info(fmt.Sprintf("%s: sending request ["+
 		"method: %s, "+
 		"url: %s, "+
 		"headers: %s, "+
@@ -178,13 +170,13 @@ func logIncomingResponse(prefix string, res *http.Response) {
 
 	err := res.Body.Close()
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s: could not read response body: %s", prefix, err))
+		slog.Error(fmt.Sprintf("%s: could not read response body - %s", prefix, err))
 	} else {
 		res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		bodyString = string(bodyBytes)
 	}
 
-	slog.Info(fmt.Sprintf("%s: received response: ["+
+	slog.Info(fmt.Sprintf("%s: received response ["+
 		"status: %s, "+
 		"headers: %s, "+
 		"payload: %s"+

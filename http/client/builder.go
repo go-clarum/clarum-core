@@ -15,21 +15,21 @@ func NewEndpointBuilder() *EndpointBuilder {
 	return &EndpointBuilder{}
 }
 
-func (ceb *EndpointBuilder) Name(name string) *EndpointBuilder {
-	ceb.name = name
-	return ceb
+func (builder *EndpointBuilder) Name(name string) *EndpointBuilder {
+	builder.name = name
+	return builder
 }
 
-func (ceb *EndpointBuilder) BaseUrl(baseUrl string) *EndpointBuilder {
-	ceb.baseUrl = baseUrl
-	return ceb
+func (builder *EndpointBuilder) BaseUrl(baseUrl string) *EndpointBuilder {
+	builder.baseUrl = baseUrl
+	return builder
 }
 
-func (ceb *EndpointBuilder) ContentType(contentType string) *EndpointBuilder {
-	ceb.contentType = contentType
-	return ceb
+func (builder *EndpointBuilder) ContentType(contentType string) *EndpointBuilder {
+	builder.contentType = contentType
+	return builder
 }
 
-func (ceb *EndpointBuilder) Build() *Endpoint {
-	return NewEndpoint(ceb.name, ceb.baseUrl, ceb.contentType, ceb.timeout)
+func (builder *EndpointBuilder) Build() *Endpoint {
+	return NewEndpoint(builder.name, builder.baseUrl, builder.contentType, builder.timeout)
 }
