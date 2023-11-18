@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
+	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
 	"github.com/goclarum/clarum/http/constants"
 	"github.com/goclarum/clarum/http/internal/utils"
 	"github.com/goclarum/clarum/http/internal/validators"
@@ -44,18 +45,25 @@ func NewEndpoint(name string, baseUrl string, contentType string, timeout time.D
 
 func (endpoint *Endpoint) send(message *message.Message) error {
 	logPrefix := clientLogPrefix(endpoint.name)
+
+	if message == nil {
+		return handleError("%s: message to send is nil", logPrefix)
+	}
+
 	slog.Debug(fmt.Sprintf("%s: message to send %s", logPrefix, message.ToString()))
 
 	messageToSend := endpoint.getMessageToSend(message)
 	slog.Debug(fmt.Sprintf("%s: will send message %s", logPrefix, messageToSend.ToString()))
 
+	if err := validateMessageToSend(logPrefix, messageToSend); err != nil {
+		return err
+	}
+
 	req, err := buildRequest(endpoint.name, messageToSend)
 	// we return error here directly and not in the goroutine below
 	// this way we can signal to the test synchronously that there was an error
 	if err != nil {
-		errorMessage := fmt.Sprintf("%s: canceled message - %s", logPrefix, err)
-		slog.Error(errorMessage)
-		return errors.New(errorMessage)
+		return handleError("%s: canceled message - %s", logPrefix, err)
 	}
 
 	control.RunningActions.Add(1)
@@ -91,9 +99,7 @@ func (endpoint *Endpoint) receive(message *message.Message) error {
 	// TODO: handle technical errors
 	//  check: socket connection, connection refused, connection timeout
 	if responsePair.error != nil {
-		errorMessage := fmt.Sprintf("%s: error while receiving response - %s", logPrefix, responsePair.error)
-		slog.Error(errorMessage)
-		return errors.New(errorMessage)
+		return handleError("%s: error while receiving response - %s", logPrefix, responsePair.error)
 	}
 
 	messageToReceive := endpoint.getMessageToReceive(message)
@@ -109,10 +115,10 @@ func (endpoint *Endpoint) receive(message *message.Message) error {
 func (endpoint *Endpoint) getMessageToSend(message *message.Message) *message.Message {
 	messageToSend := message.Clone()
 
-	if len(messageToSend.Url) == 0 {
+	if clarumstrings.IsBlank(messageToSend.Url) {
 		messageToSend.Url = endpoint.baseUrl
 	}
-	if len(messageToSend.Headers) == 0 || len(messageToSend.Headers[constants.ContentTypeHeaderName]) == 0 {
+	if len(messageToSend.Headers) == 0 || clarumstrings.IsBlank(messageToSend.Headers[constants.ContentTypeHeaderName]) {
 		messageToSend.ContentType(endpoint.contentType)
 	}
 
@@ -128,6 +134,17 @@ func (endpoint *Endpoint) getMessageToReceive(message *message.Message) *message
 	}
 
 	return messageToReceive
+}
+
+func validateMessageToSend(prefix string, messageToSend *message.Message) error {
+	if clarumstrings.IsBlank(messageToSend.Method) {
+		return handleError("%s: message to send is invalid - missing HTTP method", prefix)
+	}
+	if clarumstrings.IsBlank(messageToSend.Url) {
+		return handleError("%s: message to send is invalid - missing url", prefix)
+	}
+
+	return nil
 }
 
 func buildRequest(prefix string, message *message.Message) (*http.Request, error) {
@@ -186,4 +203,10 @@ func logIncomingResponse(prefix string, res *http.Response) {
 
 func clientLogPrefix(endpointName string) string {
 	return fmt.Sprintf("HTTP client %s", endpointName)
+}
+
+func handleError(format string, a ...any) error {
+	errorMessage := fmt.Sprintf(format, a...)
+	slog.Error(errorMessage)
+	return errors.New(errorMessage)
 }

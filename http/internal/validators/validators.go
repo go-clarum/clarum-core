@@ -12,6 +12,17 @@ import (
 	"net/url"
 )
 
+func ValidateHttpMethod(logPrefix string, message *message.Message, receivedMethod string) error {
+	if message.Method != receivedMethod {
+		return handleError("%s: validation error - HTTP method mismatch - expected [%s] but received [%s]",
+			logPrefix, message.Method, receivedMethod)
+	} else {
+		slog.Info(fmt.Sprintf("%s: HTTP method validation successful", logPrefix))
+	}
+
+	return nil
+}
+
 func ValidateHttpHeaders(logPrefix string, message *message.Message, headers http.Header) error {
 	if err := validateHeaders(message, headers); err != nil {
 		return handleError("%s: %s", logPrefix, err)

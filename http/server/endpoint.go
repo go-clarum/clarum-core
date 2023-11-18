@@ -64,6 +64,7 @@ func (endpoint *Endpoint) receive(message *message.Message) error {
 	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
 	return errors.Join(
+		validators.ValidateHttpMethod(logPrefix, messageToReceive, request.Method),
 		validators.ValidateHttpHeaders(logPrefix, messageToReceive, request.Header),
 		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, request.URL),
 		validators.ValidateHttpBody(logPrefix, messageToReceive, request.Body))
