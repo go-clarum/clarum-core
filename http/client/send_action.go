@@ -20,12 +20,12 @@ type TestSendActionBuilder struct {
 	SendActionBuilder
 }
 
-func (testBuilder *TestSendActionBuilder) Message(message *message.Message) {
+func (testBuilder *TestSendActionBuilder) Message(message *message.RequestMessage) {
 	if err := testBuilder.endpoint.send(message); err != nil {
 		testBuilder.test.Error(err)
 	}
 }
 
-func (builder *SendActionBuilder) Message(message *message.Message) error {
+func (builder *SendActionBuilder) Message(message *message.RequestMessage) error {
 	return builder.endpoint.send(message)
 }

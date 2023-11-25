@@ -11,6 +11,6 @@ type SendActionBuilder struct {
 	endpoint *Endpoint
 }
 
-func (builder *SendActionBuilder) Message(message *message.Message) {
+func (builder *SendActionBuilder) Message(message *message.ResponseMessage) {
 	builder.endpoint.send(message)
 }

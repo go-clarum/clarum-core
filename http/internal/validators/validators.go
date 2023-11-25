@@ -12,7 +12,7 @@ import (
 	"net/url"
 )
 
-func ValidateHttpMethod(logPrefix string, message *message.Message, receivedMethod string) error {
+func ValidateHttpMethod(logPrefix string, message *message.RequestMessage, receivedMethod string) error {
 	if message.Method != receivedMethod {
 		return handleError("%s: validation error - HTTP method mismatch - expected [%s] but received [%s]",
 			logPrefix, message.Method, receivedMethod)
@@ -44,7 +44,7 @@ func validateHeaders(message *message.Message, headers http.Header) error {
 	return nil
 }
 
-func ValidateHttpQueryParams(logPrefix string, message *message.Message, url *url.URL) error {
+func ValidateHttpQueryParams(logPrefix string, message *message.RequestMessage, url *url.URL) error {
 	if err := validateQueryParams(message, url.Query()); err != nil {
 		return handleError("%s: %s", logPrefix, err)
 	} else {
@@ -58,7 +58,7 @@ func ValidateHttpQueryParams(logPrefix string, message *message.Message, url *ur
 //
 //	-> validate that the param exists
 //	-> that the value matches
-func validateQueryParams(message *message.Message, params url.Values) error {
+func validateQueryParams(message *message.RequestMessage, params url.Values) error {
 	for param, expectedValue := range message.QueryParams {
 		if receivedValues, exists := params[param]; exists {
 			if !arrays.Contains(receivedValues, expectedValue) {
@@ -73,7 +73,7 @@ func validateQueryParams(message *message.Message, params url.Values) error {
 	return nil
 }
 
-func ValidateHttpStatusCode(logPrefix string, message *message.Message, statusCode int) error {
+func ValidateHttpStatusCode(logPrefix string, message *message.ResponseMessage, statusCode int) error {
 	if statusCode != message.StatusCode {
 		return handleError("%s: validation error - HTTP status mismatch - expected [%d] but received [%d]", logPrefix, message.StatusCode, statusCode)
 	} else {

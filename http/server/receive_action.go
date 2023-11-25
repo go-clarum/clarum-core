@@ -20,12 +20,12 @@ type TestReceiveActionBuilder struct {
 	ReceiveActionBuilder
 }
 
-func (testBuilder *TestReceiveActionBuilder) Message(message *message.Message) {
+func (testBuilder *TestReceiveActionBuilder) Message(message *message.RequestMessage) {
 	if err := testBuilder.endpoint.receive(message); err != nil {
 		testBuilder.test.Error(err)
 	}
 }
 
-func (builder *ReceiveActionBuilder) Message(message *message.Message) error {
+func (builder *ReceiveActionBuilder) Message(message *message.RequestMessage) error {
 	return builder.endpoint.receive(message)
 }

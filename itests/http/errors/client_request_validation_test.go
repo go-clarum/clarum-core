@@ -26,7 +26,7 @@ func TestClientSendInvalidMessageUrl(t *testing.T) {
 func TestClientSendInvalidMessageMethod(t *testing.T) {
 	expectedError := "HTTP client errorsClient: message to send is invalid - missing HTTP method"
 
-	request := &message.Message{
+	request := &message.RequestMessage{
 		Url: "something",
 	}
 	e1 := errorsClient.Send().Message(request)

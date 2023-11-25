@@ -43,7 +43,7 @@ func NewEndpoint(name string, baseUrl string, contentType string, timeout time.D
 	}
 }
 
-func (endpoint *Endpoint) send(message *message.Message) error {
+func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 	logPrefix := clientLogPrefix(endpoint.name)
 
 	if message == nil {
@@ -90,7 +90,7 @@ func (endpoint *Endpoint) send(message *message.Message) error {
 	return nil
 }
 
-func (endpoint *Endpoint) receive(message *message.Message) error {
+func (endpoint *Endpoint) receive(message *message.ResponseMessage) error {
 	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 
@@ -107,12 +107,12 @@ func (endpoint *Endpoint) receive(message *message.Message) error {
 
 	return errors.Join(
 		validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
-		validators.ValidateHttpHeaders(logPrefix, messageToReceive, responsePair.response.Header),
-		validators.ValidateHttpBody(logPrefix, messageToReceive, responsePair.response.Body))
+		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
+		validators.ValidateHttpBody(logPrefix, &messageToReceive.Message, responsePair.response.Body))
 }
 
 // Put missing data into a message to send: baseUrl & ContentType Header
-func (endpoint *Endpoint) getMessageToSend(message *message.Message) *message.Message {
+func (endpoint *Endpoint) getMessageToSend(message *message.RequestMessage) *message.RequestMessage {
 	messageToSend := message.Clone()
 
 	if clarumstrings.IsBlank(messageToSend.Url) {
@@ -126,7 +126,7 @@ func (endpoint *Endpoint) getMessageToSend(message *message.Message) *message.Me
 }
 
 // Put missing data into message to receive: ContentType Header
-func (endpoint *Endpoint) getMessageToReceive(message *message.Message) *message.Message {
+func (endpoint *Endpoint) getMessageToReceive(message *message.ResponseMessage) *message.ResponseMessage {
 	messageToReceive := message.Clone()
 
 	if len(messageToReceive.Headers) == 0 || len(messageToReceive.Headers[constants.ContentTypeHeaderName]) == 0 {
@@ -136,7 +136,7 @@ func (endpoint *Endpoint) getMessageToReceive(message *message.Message) *message
 	return messageToReceive
 }
 
-func validateMessageToSend(prefix string, messageToSend *message.Message) error {
+func validateMessageToSend(prefix string, messageToSend *message.RequestMessage) error {
 	if clarumstrings.IsBlank(messageToSend.Method) {
 		return handleError("%s: message to send is invalid - missing HTTP method", prefix)
 	}
@@ -147,7 +147,7 @@ func validateMessageToSend(prefix string, messageToSend *message.Message) error 
 	return nil
 }
 
-func buildRequest(prefix string, message *message.Message) (*http.Request, error) {
+func buildRequest(prefix string, message *message.RequestMessage) (*http.Request, error) {
 	url := utils.BuildPath(message.Url, message.Path)
 
 	req, err := http.NewRequest(message.Method, url, bytes.NewBufferString(message.MessagePayload))

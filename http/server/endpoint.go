@@ -25,18 +25,18 @@ type Endpoint struct {
 	server         *http.Server
 	context        *context.Context
 	requestChannel chan *http.Request
-	sendChannel    chan message.Message
+	sendChannel    chan message.ResponseMessage
 }
 
 type endpointContext struct {
 	endpointName   string
 	requestChannel chan *http.Request
-	sendChannel    chan message.Message
+	sendChannel    chan message.ResponseMessage
 }
 
 func NewServerEndpoint(name string, port uint, contentType string, timeout time.Duration) *Endpoint {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	sendChannel := make(chan message.Message)
+	sendChannel := make(chan message.ResponseMessage)
 	requestChannel := make(chan *http.Request)
 
 	se := &Endpoint{
@@ -55,27 +55,37 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 }
 
 // this Method is blocking, until a request is received
-func (endpoint *Endpoint) receive(message *message.Message) error {
+func (endpoint *Endpoint) receive(message *message.RequestMessage) error {
 	logPrefix := serverLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
-	messageToReceive := endpoint.getFinalMessage(message)
+	messageToReceive := endpoint.getMessageToReceive(message)
 
 	request := <-endpoint.requestChannel
 	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
 	return errors.Join(
 		validators.ValidateHttpMethod(logPrefix, messageToReceive, request.Method),
-		validators.ValidateHttpHeaders(logPrefix, messageToReceive, request.Header),
+		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, request.Header),
 		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, request.URL),
-		validators.ValidateHttpBody(logPrefix, messageToReceive, request.Body))
+		validators.ValidateHttpBody(logPrefix, &messageToReceive.Message, request.Body))
 }
 
-func (endpoint *Endpoint) send(message *message.Message) {
-	messageToSend := endpoint.getFinalMessage(message)
+func (endpoint *Endpoint) send(message *message.ResponseMessage) {
+	messageToSend := endpoint.getMessageToSend(message)
 	endpoint.sendChannel <- *messageToSend
 }
 
-func (endpoint *Endpoint) getFinalMessage(message *message.Message) *message.Message {
+func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *message.RequestMessage {
+	finalMessage := message.Clone()
+
+	if len(finalMessage.Headers) == 0 || len(finalMessage.Headers[constants.ContentTypeHeaderName]) == 0 {
+		finalMessage.ContentType(endpoint.contentType)
+	}
+
+	return finalMessage
+}
+
+func (endpoint *Endpoint) getMessageToSend(message *message.ResponseMessage) *message.ResponseMessage {
 	finalMessage := message.Clone()
 
 	if len(finalMessage.Headers) == 0 || len(finalMessage.Headers[constants.ContentTypeHeaderName]) == 0 {
