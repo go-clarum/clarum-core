@@ -13,7 +13,7 @@ func TestGet(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Get().QueryParam("myParam", "myValue1"))
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -26,7 +26,7 @@ func TestHead(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Head())
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -46,7 +46,7 @@ func TestPost(t *testing.T) {
 			QueryParam("myParam1", "myValue1").
 			QueryParam("myParam2", "myValue1").
 			Payload("my plain text payload"))
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -64,11 +64,11 @@ func TestPut(t *testing.T) {
 		Message(message.Put().
 			QueryParam("myParam1", "myValue1").
 			Payload("my plain text payload"))
-	testServer.Send().
-		Message(message.Response(http.StatusOK))
+	testServer.In(t).Send().
+		Message(message.Response(http.StatusCreated))
 
 	testClient.In(t).Receive().
-		Message(message.Response(http.StatusOK))
+		Message(message.Response(http.StatusCreated))
 }
 
 // DELETE
@@ -78,7 +78,7 @@ func TestDelete(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Delete())
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -92,7 +92,7 @@ func TestOptions(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Options())
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -106,7 +106,7 @@ func TestTrace(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Trace())
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -120,7 +120,7 @@ func TestPatch(t *testing.T) {
 
 	testServer.In(t).Receive().
 		Message(message.Patch())
-	testServer.Send().
+	testServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().

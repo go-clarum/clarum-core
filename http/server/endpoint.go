@@ -70,9 +70,16 @@ func (endpoint *Endpoint) receive(message *message.RequestMessage) error {
 		validators.ValidateHttpBody(logPrefix, &messageToReceive.Message, request.Body))
 }
 
-func (endpoint *Endpoint) send(message *message.ResponseMessage) {
+func (endpoint *Endpoint) send(message *message.ResponseMessage) error {
+	logPrefix := serverLogPrefix(endpoint.name)
 	messageToSend := endpoint.getMessageToSend(message)
+
+	if err := validateMessageToSend(logPrefix, messageToSend); err != nil {
+		return err
+	}
+
 	endpoint.sendChannel <- *messageToSend
+	return nil
 }
 
 func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *message.RequestMessage {
@@ -140,7 +147,7 @@ func (endpoint *Endpoint) start(ctx context.Context, cancelCtx context.CancelFun
 // TODO: check how timeouts are handled
 func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	control.RunningActions.Add(1)
-	defer control.RunningActions.Done()
+	defer finishOrRecover()
 
 	ctx := request.Context().Value(contextNameKey).(*endpointContext)
 
@@ -160,6 +167,29 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 		slog.Error(fmt.Sprintf("%s: could not write response body - %s", logPrefix, err))
 	}
 	logOutgoingResponse(logPrefix, messageToSend.StatusCode, messageToSend.MessagePayload, resWriter)
+}
+
+func validateMessageToSend(prefix string, messageToSend *message.ResponseMessage) error {
+	if messageToSend.StatusCode < 100 || messageToSend.StatusCode > 999 {
+		return handleError("%s: message to send is invalid - unsupported status code [%d]",
+			prefix, messageToSend.StatusCode)
+	}
+
+	return nil
+}
+
+func handleError(format string, a ...any) error {
+	errorMessage := fmt.Sprintf(format, a...)
+	slog.Error(errorMessage)
+	return errors.New(errorMessage)
+}
+
+func finishOrRecover() {
+	control.RunningActions.Done()
+
+	if r := recover(); r != nil {
+		slog.Error(fmt.Sprintf("HTTP server endpoint panicked: error - %s", r))
+	}
 }
 
 // we read the body 'as is' for logging, after which we put it back into the request
