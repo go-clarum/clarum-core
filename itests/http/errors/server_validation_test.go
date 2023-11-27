@@ -26,9 +26,10 @@ func TestMethodValidation(t *testing.T) {
 }
 
 // HTTP status code error.
-// Server receives a message to send with an invalid HTTP status code
+// Server receives a message to send with an invalid HTTP status code -> default error response because of the error
 func TestInvalidStatusCode(t *testing.T) {
-	expectedError := "HTTP server errorsServer: message to send is invalid - unsupported status code [99]"
+	expectedError := "HTTP server errorsServer: message to send is invalid - unsupported status code [99]\n" +
+		"HTTP client errorsClient: validation error - HTTP status mismatch - expected [200] but received [500]"
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 

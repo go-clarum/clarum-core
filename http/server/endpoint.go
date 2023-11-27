@@ -25,18 +25,23 @@ type Endpoint struct {
 	server         *http.Server
 	context        *context.Context
 	requestChannel chan *http.Request
-	sendChannel    chan message.ResponseMessage
+	sendChannel    chan *sendPair
 }
 
 type endpointContext struct {
 	endpointName   string
 	requestChannel chan *http.Request
-	sendChannel    chan message.ResponseMessage
+	sendChannel    chan *sendPair
+}
+
+type sendPair struct {
+	response *message.ResponseMessage
+	error    error
 }
 
 func NewServerEndpoint(name string, port uint, contentType string, timeout time.Duration) *Endpoint {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	sendChannel := make(chan message.ResponseMessage)
+	sendChannel := make(chan *sendPair)
 	requestChannel := make(chan *http.Request)
 
 	se := &Endpoint{
@@ -74,12 +79,15 @@ func (endpoint *Endpoint) send(message *message.ResponseMessage) error {
 	logPrefix := serverLogPrefix(endpoint.name)
 	messageToSend := endpoint.getMessageToSend(message)
 
-	if err := validateMessageToSend(logPrefix, messageToSend); err != nil {
-		return err
+	err := validateMessageToSend(logPrefix, messageToSend)
+
+	// we must always send a signal downstream so that the handler is not blocked
+	endpoint.sendChannel <- &sendPair{
+		response: messageToSend,
+		error:    err,
 	}
 
-	endpoint.sendChannel <- *messageToSend
-	return nil
+	return err
 }
 
 func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *message.RequestMessage {
@@ -92,6 +100,7 @@ func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *
 	return finalMessage
 }
 
+// we clone the message, so that further interaction with it in the test will not have any side effects
 func (endpoint *Endpoint) getMessageToSend(message *message.ResponseMessage) *message.ResponseMessage {
 	finalMessage := message.Clone()
 
@@ -154,19 +163,43 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	logPrefix := serverLogPrefix(ctx.endpointName)
 	logIncomingRequest(logPrefix, request)
 	ctx.requestChannel <- request
-	messageToSend := <-ctx.sendChannel
+	sendPair := <-ctx.sendChannel
 
-	for header, value := range messageToSend.Headers {
+	// error from upstream - we send a response to close the HTTP cycle
+	if sendPair.error != nil {
+		errorMessage := fmt.Sprintf("%s: request handler received error from upstream", logPrefix)
+		sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
+		return
+	}
+
+	// check if response is empty - we send a response to close the HTTP cycle
+	if sendPair.response == nil {
+		errorMessage := fmt.Sprintf("%s: request handler received empty ResponseMesage", logPrefix)
+		sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
+		return
+	}
+
+	sendResponse(logPrefix, sendPair, resWriter)
+}
+
+func sendResponse(logPrefix string, sendPair *sendPair, resWriter http.ResponseWriter) {
+	for header, value := range sendPair.response.Headers {
 		resWriter.Header().Set(header, value)
 	}
 
-	resWriter.WriteHeader(messageToSend.StatusCode)
+	resWriter.WriteHeader(sendPair.response.StatusCode)
 
-	_, err := io.WriteString(resWriter, messageToSend.MessagePayload)
+	_, err := io.WriteString(resWriter, sendPair.response.MessagePayload)
 	if err != nil {
 		slog.Error(fmt.Sprintf("%s: could not write response body - %s", logPrefix, err))
 	}
-	logOutgoingResponse(logPrefix, messageToSend.StatusCode, messageToSend.MessagePayload, resWriter)
+	logOutgoingResponse(logPrefix, sendPair.response.StatusCode, sendPair.response.MessagePayload, resWriter)
+}
+
+func sendDefaultErrorResponse(logPrefix string, errorMessage string, resWriter http.ResponseWriter) {
+	slog.Error(errorMessage)
+	resWriter.WriteHeader(http.StatusInternalServerError)
+	logOutgoingResponse(logPrefix, http.StatusInternalServerError, "", resWriter)
 }
 
 func validateMessageToSend(prefix string, messageToSend *message.ResponseMessage) error {

@@ -5,10 +5,12 @@ import (
 	"github.com/goclarum/clarum"
 	"os"
 	"testing"
+	"time"
 )
 
 var errorsClient = clarum.Http().Client().
 	Name("errorsClient").
+	Timeout(2000 * time.Millisecond).
 	Build()
 
 var errorsServer = clarum.Http().Server().

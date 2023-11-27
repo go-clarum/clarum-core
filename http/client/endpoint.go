@@ -31,7 +31,7 @@ type responsePair struct {
 
 func NewEndpoint(name string, baseUrl string, contentType string, timeout time.Duration) *Endpoint {
 	client := http.Client{
-		Timeout: timeout,
+		Timeout: getTimeoutWithDefault(timeout),
 	}
 
 	return &Endpoint{
@@ -66,15 +66,15 @@ func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 		return handleError("%s: canceled message - %s", logPrefix, err)
 	}
 
-	control.RunningActions.Add(1)
-
 	go func() {
+		control.RunningActions.Add(1)
 		defer control.RunningActions.Done()
 
 		logOutgoingRequest(logPrefix, message.MessagePayload, req)
 		res, err := endpoint.client.Do(req)
 
 		// we log the error here directly, but will do error handling downstream
+		// we send the error downstream for it to be returned when an action is called
 		if err != nil {
 			slog.Error(fmt.Sprintf("%s: error on response - %s", logPrefix, err))
 		} else {
@@ -169,6 +169,22 @@ func buildRequest(prefix string, message *message.RequestMessage) (*http.Request
 	return req, nil
 }
 
+func handleError(format string, a ...any) error {
+	errorMessage := fmt.Sprintf(format, a...)
+	slog.Error(errorMessage)
+	return errors.New(errorMessage)
+}
+
+func getTimeoutWithDefault(timeout time.Duration) time.Duration {
+	var timeoutToSet time.Duration
+	if timeout > 0 {
+		timeoutToSet = timeout
+	} else {
+		timeoutToSet = 10 * time.Second
+	}
+	return timeoutToSet
+}
+
 func logOutgoingRequest(prefix string, payload string, req *http.Request) {
 	slog.Info(fmt.Sprintf("%s: sending request ["+
 		"method: %s, "+
@@ -203,10 +219,4 @@ func logIncomingResponse(prefix string, res *http.Response) {
 
 func clientLogPrefix(endpointName string) string {
 	return fmt.Sprintf("HTTP client %s", endpointName)
-}
-
-func handleError(format string, a ...any) error {
-	errorMessage := fmt.Sprintf(format, a...)
-	slog.Error(errorMessage)
-	return errors.New(errorMessage)
 }

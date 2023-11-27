@@ -30,6 +30,11 @@ func (builder *EndpointBuilder) ContentType(contentType string) *EndpointBuilder
 	return builder
 }
 
+func (builder *EndpointBuilder) Timeout(timeout time.Duration) *EndpointBuilder {
+	builder.timeout = timeout
+	return builder
+}
+
 func (builder *EndpointBuilder) Build() *Endpoint {
 	return NewEndpoint(builder.name, builder.baseUrl, builder.contentType, builder.timeout)
 }
