@@ -6,27 +6,32 @@ import (
 	"testing"
 )
 
-// Method GET + single query param validation
+// Method GET
+// + single query param validation
+// + URL from client
 func TestGet(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Get().QueryParam("myParam", "myValue1"))
 
-	testServer.In(t).Receive().
-		Message(message.Get().QueryParam("myParam", "myValue1"))
-	testServer.In(t).Send().
+	firstTestServer.In(t).Receive().
+		Message(message.Get("myApp").QueryParam("myParam", "myValue1"))
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
 		Message(message.Response(http.StatusOK))
 }
 
+// Test method HEAD
+// + URL overwrite
 func TestHead(t *testing.T) {
 	testClient.In(t).Send().
-		Message(message.Head())
+		Message(message.Head("myOtherApp").
+			BaseUrl("http://localhost:8084"))
 
-	testServer.In(t).Receive().
-		Message(message.Head())
-	testServer.In(t).Send().
+	secondTestServer.In(t).Receive().
+		Message(message.Head("myOtherApp").BaseUrl("has no effect on server"))
+	secondTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -41,12 +46,12 @@ func TestPost(t *testing.T) {
 			QueryParam("myParam2", "myValue1").
 			Payload("my plain text payload"))
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Post().
 			QueryParam("myParam1", "myValue1").
 			QueryParam("myParam2", "myValue1").
 			Payload("my plain text payload"))
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -60,11 +65,11 @@ func TestPut(t *testing.T) {
 			QueryParam("myParam1", "myValue1").
 			Payload("my plain text payload"))
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Put().
 			QueryParam("myParam1", "myValue1").
 			Payload("my plain text payload"))
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusCreated))
 
 	testClient.In(t).Receive().
@@ -76,9 +81,9 @@ func TestDelete(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Delete())
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Delete())
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -90,9 +95,9 @@ func TestOptions(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Options())
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Options())
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -104,9 +109,9 @@ func TestTrace(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Trace())
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Trace())
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().
@@ -118,9 +123,9 @@ func TestPatch(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Patch())
 
-	testServer.In(t).Receive().
+	firstTestServer.In(t).Receive().
 		Message(message.Patch())
-	testServer.In(t).Send().
+	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
 	testClient.In(t).Receive().

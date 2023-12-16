@@ -13,9 +13,14 @@ var testClient = clarum.Http().Client().
 	Timeout(2000 * time.Millisecond).
 	Build()
 
-var testServer = clarum.Http().Server().
-	Name("testServer").
+var firstTestServer = clarum.Http().Server().
+	Name("firstTestServer").
 	Port(8083).
+	Build()
+
+var secondTestServer = clarum.Http().Server().
+	Name("secondTestServer").
+	Port(8084).
 	Build()
 
 func TestMain(m *testing.M) {

@@ -15,12 +15,22 @@ func TestClientSendNilMessage(t *testing.T) {
 	checkErrors(t, expectedError, e1)
 }
 
-func TestClientSendInvalidMessageUrl(t *testing.T) {
+func TestClientSendNilUrl(t *testing.T) {
 	expectedError := "HTTP client errorsClient: message to send is invalid - missing url"
 
 	e1 := errorsClient.Send().Message(message.Get())
 
 	checkErrors(t, expectedError, e1)
+}
+
+func TestClientSendInvalidUrl(t *testing.T) {
+	expectedError := "HTTP client errorsClient: message to send is invalid - invalid url\n" +
+		"HTTP client errorsClient: message to send is invalid - invalid url"
+
+	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http:/localhost:8081"))
+	e2 := errorsClient.Send().Message(message.Get().BaseUrl("som e thi ng"))
+
+	checkErrors(t, expectedError, e1, e2)
 }
 
 func TestClientSendInvalidMessageMethod(t *testing.T) {

@@ -143,6 +143,9 @@ func validateMessageToSend(prefix string, messageToSend *message.RequestMessage)
 	if clarumstrings.IsBlank(messageToSend.Url) {
 		return handleError("%s: message to send is invalid - missing url", prefix)
 	}
+	if !utils.IsValidUrl(messageToSend.Url) {
+		return handleError("%s: message to send is invalid - invalid url", prefix)
+	}
 
 	return nil
 }
