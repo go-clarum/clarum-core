@@ -26,11 +26,6 @@ func (response *ResponseMessage) ContentType(value string) *ResponseMessage {
 	return response
 }
 
-func (response *ResponseMessage) Authorization(value string) *ResponseMessage {
-	response.Message.authorization(value)
-	return response
-}
-
 func (response *ResponseMessage) ETag(value string) *ResponseMessage {
 	response.Message.eTag(value)
 	return response
@@ -48,19 +43,6 @@ func (response *ResponseMessage) Clone() *ResponseMessage {
 	}
 }
 
-func (response *ResponseMessage) OverwriteWith(overwriting *ResponseMessage) *ResponseMessage {
-	if overwriting.StatusCode > 0 {
-		response.StatusCode = overwriting.StatusCode
-	}
-	if len(overwriting.Headers) > 0 {
-		response.Headers = overwriting.Headers
-	}
-	if len(overwriting.MessagePayload) > 0 {
-		response.MessagePayload = overwriting.MessagePayload
-	}
-
-	return response
-}
 func (response *ResponseMessage) ToString() string {
 	statusCodeText := "none"
 	if response.StatusCode > 0 {

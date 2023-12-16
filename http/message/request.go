@@ -94,11 +94,6 @@ func (request *RequestMessage) Authorization(value string) *RequestMessage {
 	return request
 }
 
-func (request *RequestMessage) ETag(value string) *RequestMessage {
-	request.Message.eTag(value)
-	return request
-}
-
 func (request *RequestMessage) QueryParam(key string, value string) *RequestMessage {
 	if request.QueryParams == nil {
 		request.QueryParams = make(map[string]string)
@@ -110,29 +105,6 @@ func (request *RequestMessage) QueryParam(key string, value string) *RequestMess
 
 func (request *RequestMessage) Payload(payload string) *RequestMessage {
 	request.Message.MessagePayload = payload
-	return request
-}
-
-func (request *RequestMessage) OverwriteWith(overwriting *RequestMessage) *RequestMessage {
-	if len(overwriting.Method) > 0 {
-		request.Method = overwriting.Method
-	}
-	if len(overwriting.Url) > 0 {
-		request.Url = overwriting.Url
-	}
-	if len(overwriting.Path) > 0 {
-		request.Path = overwriting.Path
-	}
-	if len(overwriting.Headers) > 0 {
-		request.Headers = overwriting.Headers
-	}
-	if len(overwriting.QueryParams) > 0 {
-		request.QueryParams = overwriting.QueryParams
-	}
-	if len(overwriting.MessagePayload) > 0 {
-		request.MessagePayload = overwriting.MessagePayload
-	}
-
 	return request
 }
 

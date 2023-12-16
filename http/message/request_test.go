@@ -1,6 +1,7 @@
 package message
 
 import (
+	"github.com/goclarum/clarum/http/constants"
 	"maps"
 	"net/http"
 	"testing"
@@ -33,28 +34,36 @@ func TestHTTPVerbs(t *testing.T) {
 	}
 }
 
-func TestBuilder(t *testing.T) {
+func TestRequestBuilder(t *testing.T) {
 	actual := Post("my", "api/v0").
 		BaseUrl("http//localhost:8080").
 		ContentType("text/plain").
+		Authorization("1232341").
 		Payload("batman!")
 
-	expected := Message{
-		Method:         http.MethodPost,
-		Url:            "http//localhost:8080",
-		Path:           "my/api/v0",
-		MessagePayload: "batman!",
+	expected := RequestMessage{
+		Method: http.MethodPost,
+		Url:    "http//localhost:8080",
+		Path:   "my/api/v0",
+		Message: Message{
+			MessagePayload: "batman!",
+			Headers: map[string]string{
+				constants.ContentTypeHeaderName:   "text/plain",
+				constants.AuthorizationHeaderName: "1232341",
+			},
+		},
 	}
 
-	if messagesEqual(actual, &expected) {
+	if !requestsEqual(actual, &expected) {
 		t.Errorf("Message is not as expected.")
 	}
 }
 
-func TestClone(t *testing.T) {
+func TestRequestClone(t *testing.T) {
 	message := Get("my-url").
 		BaseUrl("http//localhost:8080").
 		ContentType("text/plain").
+		Authorization("1232341").
 		Payload("my payload")
 
 	clonedMessage := message.Clone()
@@ -63,33 +72,12 @@ func TestClone(t *testing.T) {
 		t.Errorf("Message has not been cloned.")
 	}
 
-	if !messagesEqual(clonedMessage, message) {
+	if !requestsEqual(clonedMessage, message) {
 		t.Errorf("Messages are not equal.")
 	}
 }
 
-func TestOverwriteWith(t *testing.T) {
-	baseGet := Get("base-path").
-		BaseUrl("http//localhost:8080").
-		ContentType("text/plain").
-		Payload("my initial payload")
-	postMessage := Post("post-path").
-		BaseUrl("https//localhost:443").
-		ContentType("application/json").
-		Payload("my new payload")
-
-	if messagesEqual(baseGet, postMessage) {
-		t.Errorf("Messages should not be equal")
-	}
-
-	baseGet.OverwriteWith(postMessage)
-
-	if !messagesEqual(baseGet, postMessage) {
-		t.Errorf("Not all fields have been overwritten.")
-	}
-}
-
-func messagesEqual(m1 *Message, m2 *Message) bool {
+func requestsEqual(m1 *RequestMessage, m2 *RequestMessage) bool {
 
 	if m1.Method != m2.Method {
 		return false
