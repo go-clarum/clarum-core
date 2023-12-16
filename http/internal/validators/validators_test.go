@@ -11,24 +11,24 @@ func TestValidateHeadersOK(t *testing.T) {
 	expectedMessage := createTestMessageWithHeaders()
 	req := createRealRequest()
 
-	if err := validateHeaders(expectedMessage, req.Header); err != nil {
+	if err := validateHeaders(&expectedMessage.Message, req.Header); err != nil {
 		t.Errorf("No header validation error expected, but got %s", err)
 	}
 }
 
 func TestValidateHeadersError(t *testing.T) {
 	expectedMessage := createTestMessageWithHeaders()
-	expectedMessage.ETag("1234")
+	expectedMessage.Authorization("something else")
 
 	req := createRealRequest()
 
-	err := validateHeaders(expectedMessage, req.Header)
+	err := validateHeaders(&expectedMessage.Message, req.Header)
 
 	if err == nil {
 		t.Errorf("Header validation error expected, but got none")
 	}
 
-	if err.Error() != "Validation error: header <ETag> mismatch. Expected [1234] but received [33a64df551425fcc55e4d42a148795d9f25f89d4]" {
+	if err.Error() != "validation error - header <Authorization> mismatch - expected [something else] but received [Bearer 0b79bab50daca910b000d4f1a2b675d604257e42]" {
 		t.Errorf("Header validation error message is unexpected")
 	}
 }
@@ -65,7 +65,7 @@ func TestValidateQueryParamsParamMismatch(t *testing.T) {
 		t.Errorf("Query param validation error expected, but got none")
 	}
 
-	if err.Error() != "Validation error: query param <param2> missing" {
+	if err.Error() != "validation error - query param <param2> missing" {
 		t.Errorf("Query param validation error message is unexpected")
 	}
 }
@@ -86,17 +86,16 @@ func TestValidateQueryParamsValueMismatch(t *testing.T) {
 		t.Errorf("Query param validation error expected, but got none")
 	}
 
-	if err.Error() != "Validation error: query param <param2> values mismatch. Expected [value2] but received [[value22]]" {
+	if err.Error() != "validation error - query param <param2> values mismatch - expected [value2] but received [[value22]]" {
 		t.Errorf("Query param validation error message is unexpected")
 	}
 }
 
-func createTestMessageWithHeaders() *message.Message {
+func createTestMessageWithHeaders() *message.RequestMessage {
 	return message.Post("myPath").
 		Header("Connection", "keep-alive").
 		ContentType("application/json").
-		Authorization("Bearer 0b79bab50daca910b000d4f1a2b675d604257e42").
-		ETag("33a64df551425fcc55e4d42a148795d9f25f89d4")
+		Authorization("Bearer 0b79bab50daca910b000d4f1a2b675d604257e42")
 }
 
 func createRealRequest() *http.Request {
@@ -104,7 +103,6 @@ func createRealRequest() *http.Request {
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set(constants.ContentTypeHeaderName, "application/json")
 	req.Header.Set(constants.AuthorizationHeaderName, "Bearer 0b79bab50daca910b000d4f1a2b675d604257e42")
-	req.Header.Set(constants.ETagHeaderName, "33a64df551425fcc55e4d42a148795d9f25f89d4")
 
 	return req
 }
