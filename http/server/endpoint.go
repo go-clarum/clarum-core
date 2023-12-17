@@ -69,10 +69,11 @@ func (endpoint *Endpoint) receive(message *message.RequestMessage) error {
 	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
 	return errors.Join(
+		validators.ValidatePath(logPrefix, messageToReceive, request.URL),
 		validators.ValidateHttpMethod(logPrefix, messageToReceive, request.Method),
 		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, request.Header),
 		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, request.URL),
-		validators.ValidateHttpBody(logPrefix, &messageToReceive.Message, request.Body))
+		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, request.Body))
 }
 
 func (endpoint *Endpoint) send(message *message.ResponseMessage) error {

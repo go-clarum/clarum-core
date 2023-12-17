@@ -14,7 +14,7 @@ func TestGet(t *testing.T) {
 		Message(message.Get().QueryParam("myParam", "myValue1"))
 
 	firstTestServer.In(t).Receive().
-		Message(message.Get("myApp").QueryParam("myParam", "myValue1"))
+		Message(message.Get("/myApp/").QueryParam("myParam", "myValue1"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
@@ -22,7 +22,7 @@ func TestGet(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// Test method HEAD
+// Method HEAD
 // + URL overwrite
 func TestHead(t *testing.T) {
 	testClient.In(t).Send().
@@ -38,7 +38,8 @@ func TestHead(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// POST + multiple query params
+// Method POST
+// + multiple query params
 func TestPost(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Post().
@@ -47,7 +48,7 @@ func TestPost(t *testing.T) {
 			Payload("my plain text payload"))
 
 	firstTestServer.In(t).Receive().
-		Message(message.Post().
+		Message(message.Post("myApp").
 			QueryParam("myParam1", "myValue1").
 			QueryParam("myParam2", "myValue1").
 			Payload("my plain text payload"))
@@ -58,7 +59,8 @@ func TestPost(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// PUT + query param with multiple values
+// Method PUT
+// + query param with multiple values
 func TestPut(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Put().
@@ -66,7 +68,7 @@ func TestPut(t *testing.T) {
 			Payload("my plain text payload"))
 
 	firstTestServer.In(t).Receive().
-		Message(message.Put().
+		Message(message.Put("myApp").
 			QueryParam("myParam1", "myValue1").
 			Payload("my plain text payload"))
 	firstTestServer.In(t).Send().
@@ -76,13 +78,14 @@ func TestPut(t *testing.T) {
 		Message(message.Response(http.StatusCreated))
 }
 
-// DELETE
+// Method DELETE
+// + path validation
 func TestDelete(t *testing.T) {
 	testClient.In(t).Send().
-		Message(message.Delete())
+		Message(message.Delete("my", "/", "resource", "", "1234"))
 
 	firstTestServer.In(t).Receive().
-		Message(message.Delete())
+		Message(message.Delete("myApp/my/resource/1234"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
@@ -90,13 +93,13 @@ func TestDelete(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// DELETE
+// Method OPTIONS
 func TestOptions(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Options())
 
 	firstTestServer.In(t).Receive().
-		Message(message.Options())
+		Message(message.Options("myApp"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
@@ -104,13 +107,13 @@ func TestOptions(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// TRACE
+// Method TRACE
 func TestTrace(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Trace())
 
 	firstTestServer.In(t).Receive().
-		Message(message.Trace())
+		Message(message.Trace("myApp"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 
@@ -118,13 +121,13 @@ func TestTrace(t *testing.T) {
 		Message(message.Response(http.StatusOK))
 }
 
-// PATCH
+// Method PATCH
 func TestPatch(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Patch())
 
 	firstTestServer.In(t).Receive().
-		Message(message.Patch())
+		Message(message.Patch("myApp"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK))
 

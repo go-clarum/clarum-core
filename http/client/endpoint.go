@@ -108,7 +108,7 @@ func (endpoint *Endpoint) receive(message *message.ResponseMessage) error {
 	return errors.Join(
 		validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
 		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
-		validators.ValidateHttpBody(logPrefix, &messageToReceive.Message, responsePair.response.Body))
+		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body))
 }
 
 // Put missing data into a message to send: baseUrl & ContentType Header

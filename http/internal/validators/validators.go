@@ -10,12 +10,28 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
+	"strings"
 )
 
-func ValidateHttpMethod(logPrefix string, message *message.RequestMessage, receivedMethod string) error {
-	if message.Method != receivedMethod {
+func ValidatePath(logPrefix string, expectedMessage *message.RequestMessage, actualUrl *url.URL) error {
+	cleanedExpected := cleanPath(expectedMessage.Path)
+	cleanedActual := cleanPath(actualUrl.Path)
+
+	if cleanedExpected != cleanedActual {
+		return handleError("%s: validation error - HTTP path mismatch - expected [%s] but received [%s]",
+			logPrefix, cleanedExpected, cleanedActual)
+	} else {
+		slog.Info(fmt.Sprintf("%s: HTTP path validation successful", logPrefix))
+	}
+
+	return nil
+}
+
+func ValidateHttpMethod(logPrefix string, expectedMessage *message.RequestMessage, actualMethod string) error {
+	if expectedMessage.Method != actualMethod {
 		return handleError("%s: validation error - HTTP method mismatch - expected [%s] but received [%s]",
-			logPrefix, message.Method, receivedMethod)
+			logPrefix, expectedMessage.Method, actualMethod)
 	} else {
 		slog.Info(fmt.Sprintf("%s: HTTP method validation successful", logPrefix))
 	}
@@ -23,8 +39,8 @@ func ValidateHttpMethod(logPrefix string, message *message.RequestMessage, recei
 	return nil
 }
 
-func ValidateHttpHeaders(logPrefix string, message *message.Message, headers http.Header) error {
-	if err := validateHeaders(message, headers); err != nil {
+func ValidateHttpHeaders(logPrefix string, expectedMessage *message.Message, actualHeaders http.Header) error {
+	if err := validateHeaders(expectedMessage, actualHeaders); err != nil {
 		return handleError("%s: %s", logPrefix, err)
 	} else {
 		slog.Info(fmt.Sprintf("%s: header validation successful", logPrefix))
@@ -44,8 +60,8 @@ func validateHeaders(message *message.Message, headers http.Header) error {
 	return nil
 }
 
-func ValidateHttpQueryParams(logPrefix string, message *message.RequestMessage, url *url.URL) error {
-	if err := validateQueryParams(message, url.Query()); err != nil {
+func ValidateHttpQueryParams(logPrefix string, expectedMessage *message.RequestMessage, actualUrl *url.URL) error {
+	if err := validateQueryParams(expectedMessage, actualUrl.Query()); err != nil {
 		return handleError("%s: %s", logPrefix, err)
 	} else {
 		slog.Info(fmt.Sprintf("%s: query params validation successful", logPrefix))
@@ -73,9 +89,9 @@ func validateQueryParams(message *message.RequestMessage, params url.Values) err
 	return nil
 }
 
-func ValidateHttpStatusCode(logPrefix string, message *message.ResponseMessage, statusCode int) error {
-	if statusCode != message.StatusCode {
-		return handleError("%s: validation error - HTTP status mismatch - expected [%d] but received [%d]", logPrefix, message.StatusCode, statusCode)
+func ValidateHttpStatusCode(logPrefix string, expectedMessage *message.ResponseMessage, actualStatusCode int) error {
+	if actualStatusCode != expectedMessage.StatusCode {
+		return handleError("%s: validation error - HTTP status mismatch - expected [%d] but received [%d]", logPrefix, expectedMessage.StatusCode, actualStatusCode)
 	} else {
 		slog.Info(fmt.Sprintf("%s: HTTP status validation successful", logPrefix))
 	}
@@ -83,20 +99,20 @@ func ValidateHttpStatusCode(logPrefix string, message *message.ResponseMessage, 
 	return nil
 }
 
-func ValidateHttpBody(logPrefix string, message *message.Message, body io.ReadCloser) error {
-	defer closeBody(logPrefix, body)
+func ValidateHttpPayload(logPrefix string, expectedMessage *message.Message, actualPayload io.ReadCloser) error {
+	defer closeBody(logPrefix, actualPayload)
 
-	if clarumstrings.IsBlank(message.MessagePayload) {
+	if clarumstrings.IsBlank(expectedMessage.MessagePayload) {
 		slog.Info(fmt.Sprintf("%s: message payload is empty - no body validation will be done", logPrefix))
 		return nil
 	}
 
-	bodyBytes, err := io.ReadAll(body)
+	bodyBytes, err := io.ReadAll(actualPayload)
 	if err != nil {
 		return handleError("%s: could not read response body - %s", logPrefix, err)
 	}
 
-	if err := validatePayload(message, bodyBytes); err != nil {
+	if err := validatePayload(expectedMessage, bodyBytes); err != nil {
 		return handleError("%s: %s", logPrefix, err)
 	} else {
 		slog.Info(fmt.Sprintf("%s: payload validation successful", logPrefix))
@@ -126,4 +142,9 @@ func handleError(format string, a ...any) error {
 	errorMessage := fmt.Sprintf(format, a...)
 	slog.Error(errorMessage)
 	return errors.New(errorMessage)
+}
+
+// path.Clean() does not remove leading "/", so we do that ourselves
+func cleanPath(pathToClean string) string {
+	return strings.TrimPrefix(path.Clean(pathToClean), "/")
 }

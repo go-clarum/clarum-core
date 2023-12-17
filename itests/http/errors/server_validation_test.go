@@ -15,7 +15,7 @@ func TestMethodValidation(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Post())
+	e2 := errorsServer.Receive().Message(message.Post("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
@@ -33,7 +33,7 @@ func TestInvalidStatusCode(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	e2 := errorsServer.Receive().Message(message.Get("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(99))
 
@@ -50,12 +50,31 @@ func TestStatusCodeValidation(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	e2 := errorsServer.Receive().Message(message.Get("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusBadRequest))
 
 	e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
+
+// HTTP path validation error.
+// Server responds with 404 Bad Request & client expects 200 OK
+func TestPathValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - HTTP path mismatch - expected [my/resource/5433] but received [my/resource/1234]"
+
+	e1 := errorsClient.Send().
+		Message(message.Get("my", "resource", "1234").
+			BaseUrl("http://localhost:8083"))
+
+	e2 := errorsServer.Receive().Message(message.Get("my", "resource", "5433"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusNotFound))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusNotFound))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
 }
