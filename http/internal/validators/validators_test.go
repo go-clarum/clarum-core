@@ -66,7 +66,7 @@ func TestValidateHeadersOK(t *testing.T) {
 	}
 }
 
-func TestValidateHeadersError(t *testing.T) {
+func TestValidateHeaderValueError(t *testing.T) {
 	expectedMessage := createTestMessageWithHeaders()
 	expectedMessage.Authorization("something else")
 
@@ -78,7 +78,24 @@ func TestValidateHeadersError(t *testing.T) {
 		t.Errorf("Header validation error expected, but got none")
 	}
 
-	if err.Error() != "headersErrorTest: validation error - header <Authorization> mismatch - expected [something else] but received [Bearer 0b79bab50daca910b000d4f1a2b675d604257e42]" {
+	if err.Error() != "headersErrorTest: validation error - header <authorization> mismatch - expected [something else] but received [[Bearer 0b79bab50daca910b000d4f1a2b675d604257e42]]" {
+		t.Errorf("Header validation error message is unexpected")
+	}
+}
+
+func TestValidateMissingHeaderError(t *testing.T) {
+	expectedMessage := createTestMessageWithHeaders()
+	expectedMessage.Header("traceid", "124245132")
+
+	req := createRealRequest()
+
+	err := ValidateHttpHeaders("headersErrorTest", &expectedMessage.Message, req.Header)
+
+	if err == nil {
+		t.Errorf("Header validation error expected, but got none")
+	}
+
+	if err.Error() != "headersErrorTest: validation error - header <traceid> missing" {
 		t.Errorf("Header validation error message is unexpected")
 	}
 }

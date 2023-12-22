@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/control"
+	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
 	"github.com/goclarum/clarum/http/constants"
 	"github.com/goclarum/clarum/http/internal/validators"
 	"github.com/goclarum/clarum/http/message"
@@ -94,8 +95,12 @@ func (endpoint *Endpoint) send(message *message.ResponseMessage) error {
 func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *message.RequestMessage {
 	finalMessage := message.Clone()
 
-	if len(finalMessage.Headers) == 0 || len(finalMessage.Headers[constants.ContentTypeHeaderName]) == 0 {
-		finalMessage.ContentType(endpoint.contentType)
+	if clarumstrings.IsNotBlank(endpoint.contentType) {
+		if len(finalMessage.Headers) == 0 {
+			finalMessage.ContentType(endpoint.contentType)
+		} else if _, exists := finalMessage.Headers[constants.ContentTypeHeaderName]; exists {
+			finalMessage.ContentType(endpoint.contentType)
+		}
 	}
 
 	return finalMessage

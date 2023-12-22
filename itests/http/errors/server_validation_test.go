@@ -78,3 +78,44 @@ func TestPathValidation(t *testing.T) {
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
 }
+
+// HTTP header validation error: multiple headers, one missing
+func TestHeaderMissingValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - header <traceid> missing"
+
+	e1 := errorsClient.Send().
+		Message(message.Get().
+			BaseUrl("http://localhost:8083").
+			Authorization("Bearer: 123152123123"))
+
+	e2 := errorsServer.Receive().Message(message.Get().
+		Authorization("Bearer: 123152123123").
+		Header("traceid", "777777777"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusInternalServerError))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusInternalServerError))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
+
+// HTTP header validation error: header value incorrect
+func TestHeaderInvalidValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - header <authorization> mismatch - expected [Bearer: 234121] but received [[Bearer: 123152123123]]"
+
+	e1 := errorsClient.Send().
+		Message(message.Get().
+			BaseUrl("http://localhost:8083").
+			Authorization("Bearer: 123152123123"))
+
+	e2 := errorsServer.Receive().Message(message.Get().
+		Authorization("Bearer: 234121"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusInternalServerError))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusInternalServerError))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}

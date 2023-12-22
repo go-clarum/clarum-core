@@ -61,15 +61,18 @@ func TestPost(t *testing.T) {
 
 // Method PUT
 // + query param with multiple values
+// + authorization header
 func TestPut(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Put().
 			QueryParam("myParam1", "myValue1").
+			Authorization("1234").
 			Payload("my plain text payload"))
 
 	firstTestServer.In(t).Receive().
 		Message(message.Put("myApp").
 			QueryParam("myParam1", "myValue1").
+			Authorization("1234").
 			Payload("my plain text payload"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusCreated))
@@ -80,9 +83,11 @@ func TestPut(t *testing.T) {
 
 // Method DELETE
 // + path validation
+// + server ignores Authorization header
 func TestDelete(t *testing.T) {
 	testClient.In(t).Send().
-		Message(message.Delete("my", "/", "resource", "", "1234"))
+		Message(message.Delete("my", "/", "resource", "", "1234").
+			Authorization("some token which is ignored on server validation"))
 
 	firstTestServer.In(t).Receive().
 		Message(message.Delete("myApp/my/resource/1234"))
@@ -94,17 +99,25 @@ func TestDelete(t *testing.T) {
 }
 
 // Method OPTIONS
+// + multiple header validation server side
+// + single header validation client side
 func TestOptions(t *testing.T) {
 	testClient.In(t).Send().
-		Message(message.Options())
+		Message(message.Options().
+			Header("trace", "231561234234").
+			Header("span", "33334444"))
 
 	firstTestServer.In(t).Receive().
-		Message(message.Options("myApp"))
+		Message(message.Options("myApp").
+			Header("trace", "231561234234").
+			Header("span", "33334444"))
 	firstTestServer.In(t).Send().
-		Message(message.Response(http.StatusOK))
+		Message(message.Response(http.StatusOK).
+			ETag("555777666"))
 
 	testClient.In(t).Receive().
-		Message(message.Response(http.StatusOK))
+		Message(message.Response(http.StatusOK).
+			ETag("555777666"))
 }
 
 // Method TRACE

@@ -49,11 +49,22 @@ func ValidateHttpHeaders(logPrefix string, expectedMessage *message.Message, act
 	return nil
 }
 
+// According to the official specification, HTTP headers must be compared in a case-insensitive way
 func validateHeaders(message *message.Message, headers http.Header) error {
+	lowerCaseReceivedHeaders := make(map[string][]string)
+	for header, values := range headers {
+		lowerCaseReceivedHeaders[strings.ToLower(header)] = values
+	}
+
 	for header, expectedValue := range message.Headers {
-		if receivedValue := headers.Get(header); expectedValue != receivedValue {
-			return errors.New(fmt.Sprintf("validation error - header <%s> mismatch - expected [%s] but received [%s]",
-				header, expectedValue, receivedValue))
+		lowerCaseExpectedHeader := strings.ToLower(header)
+		if receivedValues, exists := lowerCaseReceivedHeaders[lowerCaseExpectedHeader]; exists {
+			if !arrays.Contains(receivedValues, expectedValue) {
+				return errors.New(fmt.Sprintf("validation error - header <%s> mismatch - expected [%s] but received [%s]",
+					lowerCaseExpectedHeader, expectedValue, receivedValues))
+			}
+		} else {
+			return errors.New(fmt.Sprintf("validation error - header <%s> missing", lowerCaseExpectedHeader))
 		}
 	}
 

@@ -127,13 +127,17 @@ func (endpoint *Endpoint) getMessageToSend(message *message.RequestMessage) *mes
 
 // Put missing data into message to receive: ContentType Header
 func (endpoint *Endpoint) getMessageToReceive(message *message.ResponseMessage) *message.ResponseMessage {
-	messageToReceive := message.Clone()
+	finalMessage := message.Clone()
 
-	if len(messageToReceive.Headers) == 0 || len(messageToReceive.Headers[constants.ContentTypeHeaderName]) == 0 {
-		messageToReceive.ContentType(endpoint.contentType)
+	if clarumstrings.IsNotBlank(endpoint.contentType) {
+		if len(finalMessage.Headers) == 0 {
+			finalMessage.ContentType(endpoint.contentType)
+		} else if _, exists := finalMessage.Headers[constants.ContentTypeHeaderName]; exists {
+			finalMessage.ContentType(endpoint.contentType)
+		}
 	}
 
-	return messageToReceive
+	return finalMessage
 }
 
 func validateMessageToSend(prefix string, messageToSend *message.RequestMessage) error {
