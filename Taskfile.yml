@@ -1,0 +1,14 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - go build -v clarum.go
+
+  test:
+    cmds:
+      - go test ./core/... ./http/...
+
+  itest:
+    cmds:
+      - go test ./itests/...
