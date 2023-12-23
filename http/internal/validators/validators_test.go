@@ -153,7 +153,45 @@ func TestValidateQueryParamsValueMismatch(t *testing.T) {
 		t.Errorf("Query param validation error expected, but got none")
 	}
 
-	if err.Error() != "queryParamValueErrorTest: validation error - query param <param2> values mismatch - expected [value2] but received [[value22]]" {
+	if err.Error() != "queryParamValueErrorTest: validation error - query param <param2> values mismatch - expected [[value2]] but received [[value22]]" {
+		t.Errorf("Query param validation error message is unexpected")
+	}
+}
+
+func TestValidateQueryParamsMultiValueOK(t *testing.T) {
+	expectedMessage := message.Get("myPath").
+		QueryParam("param1", "value1").
+		QueryParam("param1", "value3")
+
+	req := createRealRequest()
+	qParams := req.URL.Query()
+	qParams.Set("param1", "value1")
+	qParams.Add("param1", "value2")
+	qParams.Add("param1", "value3")
+	req.URL.RawQuery = qParams.Encode()
+
+	if err := ValidateHttpQueryParams("queryParamsMultiValueOKTest", expectedMessage, req.URL); err != nil {
+		t.Errorf("No query param validation error expected, but got %s", err)
+	}
+}
+
+func TestValidateQueryParamsMultiValueMismatch(t *testing.T) {
+	expectedMessage := message.Get("myPath").
+		QueryParam("param1", "value1", "value2", "value4")
+
+	req := createRealRequest()
+	qParams := req.URL.Query()
+	qParams.Set("param1", "value1")
+	qParams.Add("param1", "value2")
+	qParams.Add("param1", "value3")
+	req.URL.RawQuery = qParams.Encode()
+
+	err := ValidateHttpQueryParams("queryParamsMultiValueErrorTest", expectedMessage, req.URL)
+	if err == nil {
+		t.Errorf("Query param validation error expected, but got none")
+	}
+
+	if err.Error() != "queryParamsMultiValueErrorTest: validation error - query param <param1> values mismatch - expected [[value1 value2 value4]] but received [[value1 value2 value3]]" {
 		t.Errorf("Query param validation error message is unexpected")
 	}
 }

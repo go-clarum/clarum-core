@@ -6,6 +6,9 @@ tasks:
       - go build -v clarum.go
 
   test:
+    deps: [unit, itest]
+
+  unit:
     cmds:
       - go test ./core/... ./http/...
 

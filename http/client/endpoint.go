@@ -74,13 +74,13 @@ func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 		res, err := endpoint.client.Do(req)
 
 		// we log the error here directly, but will do error handling downstream
-		// we send the error downstream for it to be returned when an action is called
 		if err != nil {
 			slog.Error(fmt.Sprintf("%s: error on response - %s", logPrefix, err))
 		} else {
 			logIncomingResponse(logPrefix, res)
 		}
 
+		// we send the error downstream for it to be returned when an action is called
 		endpoint.responseChannel <- &responsePair{
 			response: res,
 			error:    err,
@@ -168,8 +168,10 @@ func buildRequest(prefix string, message *message.RequestMessage) (*http.Request
 	}
 
 	qParams := req.URL.Query()
-	for key, value := range message.QueryParams {
-		qParams.Add(key, value)
+	for key, values := range message.QueryParams {
+		for _, value := range values {
+			qParams.Add(key, value)
+		}
 	}
 	req.URL.RawQuery = qParams.Encode()
 

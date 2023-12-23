@@ -4,6 +4,7 @@ import (
 	"github.com/goclarum/clarum/http/constants"
 	"maps"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -87,7 +88,7 @@ func requestsEqual(m1 *RequestMessage, m2 *RequestMessage) bool {
 		return false
 	} else if !maps.Equal(m1.Headers, m2.Headers) {
 		return false
-	} else if !maps.Equal(m1.QueryParams, m2.QueryParams) {
+	} else if !reflect.DeepEqual(m1.QueryParams, m2.QueryParams) {
 		return false
 	} else if m1.MessagePayload != m2.MessagePayload {
 		return false

@@ -12,7 +12,7 @@ type RequestMessage struct {
 	Method      string
 	Url         string
 	Path        string
-	QueryParams map[string]string
+	QueryParams map[string][]string
 }
 
 func Get(pathElements ...string) *RequestMessage {
@@ -94,12 +94,19 @@ func (request *RequestMessage) Authorization(value string) *RequestMessage {
 	return request
 }
 
-func (request *RequestMessage) QueryParam(key string, value string) *RequestMessage {
+func (request *RequestMessage) QueryParam(key string, values ...string) *RequestMessage {
 	if request.QueryParams == nil {
-		request.QueryParams = make(map[string]string)
+		request.QueryParams = make(map[string][]string)
 	}
 
-	request.QueryParams[key] = value
+	if _, exists := request.QueryParams[key]; exists {
+		for _, value := range values {
+			request.QueryParams[key] = append(request.QueryParams[key], value)
+		}
+	} else {
+		request.QueryParams[key] = values
+	}
+
 	return request
 }
 

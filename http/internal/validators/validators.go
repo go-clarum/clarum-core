@@ -84,13 +84,15 @@ func ValidateHttpQueryParams(logPrefix string, expectedMessage *message.RequestM
 // validate query parameters based on these rules
 //
 //	-> validate that the param exists
-//	-> that the value matches
+//	-> that the values matche
 func validateQueryParams(message *message.RequestMessage, params url.Values) error {
-	for param, expectedValue := range message.QueryParams {
+	for param, expectedValues := range message.QueryParams {
 		if receivedValues, exists := params[param]; exists {
-			if !arrays.Contains(receivedValues, expectedValue) {
-				return errors.New(fmt.Sprintf("validation error - query param <%s> values mismatch - expected [%v] but received [%s]",
-					param, expectedValue, receivedValues))
+			for _, expectedValue := range expectedValues {
+				if !arrays.Contains(receivedValues, expectedValue) {
+					return errors.New(fmt.Sprintf("validation error - query param <%s> values mismatch - expected [%v] but received [%s]",
+						param, expectedValues, receivedValues))
+				}
 			}
 		} else {
 			return errors.New(fmt.Sprintf("validation error - query param <%s> missing", param))

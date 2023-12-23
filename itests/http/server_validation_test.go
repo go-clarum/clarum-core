@@ -65,7 +65,7 @@ func TestPost(t *testing.T) {
 func TestPut(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Put().
-			QueryParam("myParam1", "myValue1").
+			QueryParam("myParam1", "myValue1", "myValue2").
 			Authorization("1234").
 			Payload("my plain text payload"))
 

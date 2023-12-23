@@ -119,3 +119,68 @@ func TestHeaderInvalidValidation(t *testing.T) {
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
 }
+
+// HTTP query params validation error: query param missing
+func TestQueryParamMissingValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - query param <param2> missing"
+
+	e1 := errorsClient.Send().
+		Message(message.Get().
+			BaseUrl("http://localhost:8083").
+			QueryParam("param1", "value1"))
+
+	e2 := errorsServer.Receive().Message(message.Get().
+		QueryParam("param1", "value1").
+		QueryParam("param2", "value2"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusInternalServerError))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusInternalServerError))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
+
+// HTTP query params validation error: query param value mismatch
+func TestQueryParamInvalidValueValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - query param <param2> values mismatch - expected [[value3]] but received [[value2]]"
+
+	e1 := errorsClient.Send().
+		Message(message.Get().
+			BaseUrl("http://localhost:8083").
+			QueryParam("param1", "value1").
+			QueryParam("param2", "value2"))
+
+	e2 := errorsServer.Receive().Message(message.Get().
+		QueryParam("param1", "value1").
+		QueryParam("param2", "value3"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusInternalServerError))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusInternalServerError))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
+
+// HTTP query params validation error: query param multi value mismatch
+func TestQueryParamInvalidMultiValueValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - query param <param2> values mismatch - expected [[value2 value3]] but received [[value2 value4]]"
+
+	e1 := errorsClient.Send().
+		Message(message.Get().
+			BaseUrl("http://localhost:8083").
+			QueryParam("param1", "value1").
+			QueryParam("param2", "value2", "value4"))
+
+	e2 := errorsServer.Receive().Message(message.Get().
+		QueryParam("param1", "value1").
+		QueryParam("param2", "value2", "value3"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusInternalServerError))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusInternalServerError))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
