@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/goclarum/clarum/core/config"
 	"github.com/goclarum/clarum/core/control"
 	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
 	"github.com/goclarum/clarum/http/constants"
@@ -20,19 +21,19 @@ import (
 const contextNameKey = "endpointContext"
 
 type Endpoint struct {
-	name           string
-	port           uint
-	contentType    string
-	server         *http.Server
-	context        *context.Context
-	requestChannel chan *http.Request
-	sendChannel    chan *sendPair
+	name                     string
+	port                     uint
+	contentType              string
+	server                   *http.Server
+	context                  *context.Context
+	requestValidationChannel chan *http.Request
+	sendChannel              chan *sendPair
 }
 
 type endpointContext struct {
-	endpointName   string
-	requestChannel chan *http.Request
-	sendChannel    chan *sendPair
+	endpointName             string
+	requestValidationChannel chan *http.Request
+	sendChannel              chan *sendPair
 }
 
 type sendPair struct {
@@ -46,12 +47,12 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 	requestChannel := make(chan *http.Request)
 
 	se := &Endpoint{
-		name:           name,
-		port:           port,
-		contentType:    contentType,
-		context:        &ctx,
-		sendChannel:    sendChannel,
-		requestChannel: requestChannel,
+		name:                     name,
+		port:                     port,
+		contentType:              contentType,
+		context:                  &ctx,
+		sendChannel:              sendChannel,
+		requestValidationChannel: requestChannel,
 	}
 
 	// feature: start automatically = true/false; to simulate connection errors
@@ -66,15 +67,19 @@ func (endpoint *Endpoint) receive(message *message.RequestMessage) (*http.Reques
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 	messageToReceive := endpoint.getMessageToReceive(message)
 
-	receivedRequest := <-endpoint.requestChannel
-	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
+	select {
+	case receivedRequest := <-endpoint.requestValidationChannel:
+		slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
-	return receivedRequest, errors.Join(
-		validators.ValidatePath(logPrefix, messageToReceive, receivedRequest.URL),
-		validators.ValidateHttpMethod(logPrefix, messageToReceive, receivedRequest.Method),
-		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, receivedRequest.Header),
-		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, receivedRequest.URL),
-		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, receivedRequest.Body))
+		return receivedRequest, errors.Join(
+			validators.ValidatePath(logPrefix, messageToReceive, receivedRequest.URL),
+			validators.ValidateHttpMethod(logPrefix, messageToReceive, receivedRequest.Method),
+			validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, receivedRequest.Header),
+			validators.ValidateHttpQueryParams(logPrefix, messageToReceive, receivedRequest.URL),
+			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, receivedRequest.Body))
+	case <-time.After(config.ActionTimeout()):
+		return nil, handleError("%s: receive action timed out - no request received for validation", logPrefix)
+	}
 }
 
 func (endpoint *Endpoint) send(message *message.ResponseMessage) error {
@@ -84,12 +89,17 @@ func (endpoint *Endpoint) send(message *message.ResponseMessage) error {
 	err := validateMessageToSend(logPrefix, messageToSend)
 
 	// we must always send a signal downstream so that the handler is not blocked
-	endpoint.sendChannel <- &sendPair{
+	toSend := &sendPair{
 		response: messageToSend,
 		error:    err,
 	}
 
-	return err
+	select {
+	case endpoint.sendChannel <- toSend:
+		return err
+	case <-time.After(config.ActionTimeout()):
+		return handleError("%s: send action timed out - no request received for validation", logPrefix)
+	}
 }
 
 func (endpoint *Endpoint) getMessageToReceive(message *message.RequestMessage) *message.RequestMessage {
@@ -127,9 +137,9 @@ func (endpoint *Endpoint) start(ctx context.Context, cancelCtx context.CancelFun
 		WriteTimeout: timeout,
 		BaseContext: func(l net.Listener) context.Context {
 			endpointContext := &endpointContext{
-				endpointName:   endpoint.name,
-				requestChannel: endpoint.requestChannel,
-				sendChannel:    endpoint.sendChannel,
+				endpointName:             endpoint.name,
+				requestValidationChannel: endpoint.requestValidationChannel,
+				sendChannel:              endpoint.sendChannel,
 			}
 			ctx = context.WithValue(ctx, contextNameKey, endpointContext)
 			return ctx
@@ -155,11 +165,10 @@ func (endpoint *Endpoint) start(ctx context.Context, cancelCtx context.CancelFun
 }
 
 // The requestHandler is started when the server receives a request.
-// The request is sent to the requestChannel to be picked up by a test action (validation).
+// The request is sent to the requestValidationChannel to be picked up by a test action (validation).
 // After sending the request to the channel, the handler is blocked until the send() test action
 // provides a response message. This way we can control, inside the test, when a response will be sent.
 // The handler blocks until a timeout is triggered
-// TODO: check how timeouts are handled
 func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 	control.RunningActions.Add(1)
 	defer finishOrRecover()
@@ -168,24 +177,34 @@ func requestHandler(resWriter http.ResponseWriter, request *http.Request) {
 
 	logPrefix := serverLogPrefix(ctx.endpointName)
 	logIncomingRequest(logPrefix, request)
-	ctx.requestChannel <- request
-	sendPair := <-ctx.sendChannel
 
-	// error from upstream - we send a response to close the HTTP cycle
-	if sendPair.error != nil {
-		errorMessage := fmt.Sprintf("%s: request handler received error from upstream", logPrefix)
-		sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
-		return
+	select {
+	case ctx.requestValidationChannel <- request:
+		slog.Debug(fmt.Sprintf("%s: received HTTP request sent to request validation channel", logPrefix))
+	case <-time.After(config.ActionTimeout()):
+		slog.Warn(fmt.Sprintf("%s: request handling timed out - no server receive action called in test", logPrefix))
 	}
 
-	// check if response is empty - we send a response to close the HTTP cycle
-	if sendPair.response == nil {
-		errorMessage := fmt.Sprintf("%s: request handler received empty ResponseMesage", logPrefix)
-		sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
-		return
-	}
+	select {
+	case sendPair := <-ctx.sendChannel:
+		// error from upstream - we send a response to close the HTTP cycle
+		if sendPair.error != nil {
+			errorMessage := fmt.Sprintf("%s: request handler received error from upstream", logPrefix)
+			sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
+			return
+		}
 
-	sendResponse(logPrefix, sendPair, resWriter)
+		// check if response is empty - we send a response to close the HTTP cycle
+		if sendPair.response == nil {
+			errorMessage := fmt.Sprintf("%s: request handler received empty ResponseMesage", logPrefix)
+			sendDefaultErrorResponse(logPrefix, errorMessage, resWriter)
+			return
+		}
+
+		sendResponse(logPrefix, sendPair, resWriter)
+	case <-time.After(config.ActionTimeout()):
+		slog.Warn(fmt.Sprintf("%s: response handling timed out - no server send action called in test", logPrefix))
+	}
 }
 
 func sendResponse(logPrefix string, sendPair *sendPair, resWriter http.ResponseWriter) {

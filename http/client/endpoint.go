@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/goclarum/clarum/core/config"
 	"github.com/goclarum/clarum/core/control"
 	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
 	"github.com/goclarum/clarum/http/constants"
@@ -80,10 +81,16 @@ func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 			logIncomingResponse(logPrefix, res)
 		}
 
-		// we send the error downstream for it to be returned when an action is called
-		endpoint.responseChannel <- &responsePair{
+		responsePair := &responsePair{
 			response: res,
 			error:    err,
+		}
+
+		select {
+		// we send the error downstream for it to be returned when an action is called
+		case endpoint.responseChannel <- responsePair:
+		case <-time.After(config.ActionTimeout()):
+			handleError("%s: action timed out - no client receive action called in test", logPrefix)
 		}
 	}()
 
@@ -94,21 +101,22 @@ func (endpoint *Endpoint) receive(message *message.ResponseMessage) (*http.Respo
 	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 
-	responsePair := <-endpoint.responseChannel
+	select {
+	case responsePair := <-endpoint.responseChannel:
+		if responsePair.error != nil {
+			return responsePair.response, handleError("%s: error while receiving response - %s", logPrefix, responsePair.error)
+		}
 
-	// TODO: handle technical errors
-	//  check: socket connection, connection refused, connection timeout
-	if responsePair.error != nil {
-		return responsePair.response, handleError("%s: error while receiving response - %s", logPrefix, responsePair.error)
+		messageToReceive := endpoint.getMessageToReceive(message)
+		slog.Debug(fmt.Sprintf("%s: validating message %s", logPrefix, messageToReceive.ToString()))
+
+		return responsePair.response, errors.Join(
+			validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
+			validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
+			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body))
+	case <-time.After(config.ActionTimeout()):
+		return nil, handleError("%s: receive action timed out - no response received for validation", logPrefix)
 	}
-
-	messageToReceive := endpoint.getMessageToReceive(message)
-	slog.Debug(fmt.Sprintf("%s: validating message %s", logPrefix, messageToReceive.ToString()))
-
-	return responsePair.response, errors.Join(
-		validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
-		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
-		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body))
 }
 
 // Put missing data into a message to send: baseUrl & ContentType Header

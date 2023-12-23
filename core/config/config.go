@@ -7,12 +7,16 @@ import (
 	"log/slog"
 	"path"
 	"strings"
+	"time"
 )
 
 var c *Config
 
 type Config struct {
 	Profile string
+	Actions struct {
+		TimeoutSeconds uint
+	}
 	Logging struct {
 		Level string `yaml:"level"`
 	}
@@ -44,6 +48,10 @@ func BaseDir() string {
 
 func LoggingLevel() slog.Level {
 	return parseLevel(c.Logging.Level)
+}
+
+func ActionTimeout() time.Duration {
+	return time.Duration(c.Actions.TimeoutSeconds) * time.Second
 }
 
 func parseLevel(level string) slog.Level {
