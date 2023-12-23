@@ -184,3 +184,40 @@ func TestQueryParamInvalidMultiValueValidation(t *testing.T) {
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
 }
+
+// HTTP plain text request payload validation error: payload missing
+func TestMissingTextRequestPayloadValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - payload missing - expected [expected payload] but received no payload"
+
+	e1 := errorsClient.Send().
+		Message(message.Post().BaseUrl("http://localhost:8083"))
+
+	e2 := errorsServer.Receive().Message(message.Post().
+		Payload("expected payload"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusOK))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusOK))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}
+
+// HTTP plain text request payload validation error: payload invalid
+func TestWrongTextRequestPayloadValidation(t *testing.T) {
+	expectedError := "HTTP server errorsServer: validation error - payload mismatch - expected [expected payload] but received [wrong payload]"
+
+	e1 := errorsClient.Send().
+		Message(message.Post().BaseUrl("http://localhost:8083").
+			Payload("wrong payload"))
+
+	e2 := errorsServer.Receive().Message(message.Post().
+		Payload("expected payload"))
+	e3 := errorsServer.Send().
+		Message(message.Response(http.StatusOK))
+
+	e4 := errorsClient.Receive().
+		Message(message.Response(http.StatusOK))
+
+	checkErrors(t, expectedError, e1, e2, e3, e4)
+}

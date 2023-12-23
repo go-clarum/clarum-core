@@ -143,8 +143,11 @@ func closeBody(logPrefix string, body io.ReadCloser) {
 func validatePayload(message *message.Message, payload []byte) error {
 	receivedPayload := string(payload)
 
-	if message.MessagePayload != receivedPayload { // plain text validation
-		return errors.New(fmt.Sprintf("validation error - payload missmatch - expected [%s] but received [%s]",
+	if clarumstrings.IsBlank(receivedPayload) {
+		return errors.New(fmt.Sprintf("validation error - payload missing - expected [%s] but received no payload",
+			message.MessagePayload))
+	} else if message.MessagePayload != receivedPayload { // plain text validation
+		return errors.New(fmt.Sprintf("validation error - payload mismatch - expected [%s] but received [%s]",
 			message.MessagePayload, receivedPayload))
 	}
 

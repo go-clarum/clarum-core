@@ -62,6 +62,7 @@ func TestPost(t *testing.T) {
 // Method PUT
 // + query param with multiple values
 // + authorization header
+// + request payload validation
 func TestPut(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Put().
@@ -84,10 +85,12 @@ func TestPut(t *testing.T) {
 // Method DELETE
 // + path validation
 // + server ignores Authorization header
+// + server ignores request payload
 func TestDelete(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Delete("my", "/", "resource", "", "1234").
-			Authorization("some token which is ignored on server validation"))
+			Authorization("some token which is ignored on server validation").
+			Payload("payload which will be ignored"))
 
 	firstTestServer.In(t).Receive().
 		Message(message.Delete("myApp/my/resource/1234"))
@@ -101,6 +104,7 @@ func TestDelete(t *testing.T) {
 // Method OPTIONS
 // + multiple header validation server side
 // + single header validation client side
+// + client ignores response payload
 func TestOptions(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Options().
@@ -113,7 +117,8 @@ func TestOptions(t *testing.T) {
 			Header("span", "33334444"))
 	firstTestServer.In(t).Send().
 		Message(message.Response(http.StatusOK).
-			ETag("555777666"))
+			ETag("555777666").
+			Payload("payload which will be ignored"))
 
 	testClient.In(t).Receive().
 		Message(message.Response(http.StatusOK).
@@ -121,6 +126,7 @@ func TestOptions(t *testing.T) {
 }
 
 // Method TRACE
+// + response payload validation
 func TestTrace(t *testing.T) {
 	testClient.In(t).Send().
 		Message(message.Trace())
@@ -128,10 +134,12 @@ func TestTrace(t *testing.T) {
 	firstTestServer.In(t).Receive().
 		Message(message.Trace("myApp"))
 	firstTestServer.In(t).Send().
-		Message(message.Response(http.StatusOK))
+		Message(message.Response(http.StatusOK).
+			Payload("my special response"))
 
 	testClient.In(t).Receive().
-		Message(message.Response(http.StatusOK))
+		Message(message.Response(http.StatusOK).
+			Payload("my special response"))
 }
 
 // Method PATCH
