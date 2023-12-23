@@ -15,11 +15,11 @@ func TestHeaderMissingResponseValidation(t *testing.T) {
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	_, e2 := errorsServer.Receive().Message(message.Get())
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK).
 			ETag("132r1r312e1"))
 
@@ -33,13 +33,13 @@ func TestHeaderInvalidResponseValidation(t *testing.T) {
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	_, e2 := errorsServer.Receive().Message(message.Get())
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK).
 			ETag("132r1r312e1").
 			Header("someHeader", "someValue"))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK).
 			ETag("132r1r312e1").
 			Header("someHeader", "wrongValue"))
@@ -54,11 +54,11 @@ func TestMissingTextResponsePayloadValidation(t *testing.T) {
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	_, e2 := errorsServer.Receive().Message(message.Get())
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK).
 			Payload("expected payload"))
 
@@ -72,12 +72,12 @@ func TestWrongTextResponsePayloadValidation(t *testing.T) {
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Get())
+	_, e2 := errorsServer.Receive().Message(message.Get())
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK).
 			Payload("wrong payload"))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK).
 			Payload("expected payload"))
 

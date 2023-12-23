@@ -61,20 +61,20 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 }
 
 // this Method is blocking, until a request is received
-func (endpoint *Endpoint) receive(message *message.RequestMessage) error {
+func (endpoint *Endpoint) receive(message *message.RequestMessage) (*http.Request, error) {
 	logPrefix := serverLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 	messageToReceive := endpoint.getMessageToReceive(message)
 
-	request := <-endpoint.requestChannel
+	receivedRequest := <-endpoint.requestChannel
 	slog.Debug(fmt.Sprintf("%s: validation message %s", logPrefix, messageToReceive.ToString()))
 
-	return errors.Join(
-		validators.ValidatePath(logPrefix, messageToReceive, request.URL),
-		validators.ValidateHttpMethod(logPrefix, messageToReceive, request.Method),
-		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, request.Header),
-		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, request.URL),
-		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, request.Body))
+	return receivedRequest, errors.Join(
+		validators.ValidatePath(logPrefix, messageToReceive, receivedRequest.URL),
+		validators.ValidateHttpMethod(logPrefix, messageToReceive, receivedRequest.Method),
+		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, receivedRequest.Header),
+		validators.ValidateHttpQueryParams(logPrefix, messageToReceive, receivedRequest.URL),
+		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, receivedRequest.Body))
 }
 
 func (endpoint *Endpoint) send(message *message.ResponseMessage) error {

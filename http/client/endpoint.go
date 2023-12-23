@@ -90,7 +90,7 @@ func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 	return nil
 }
 
-func (endpoint *Endpoint) receive(message *message.ResponseMessage) error {
+func (endpoint *Endpoint) receive(message *message.ResponseMessage) (*http.Response, error) {
 	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 
@@ -99,13 +99,13 @@ func (endpoint *Endpoint) receive(message *message.ResponseMessage) error {
 	// TODO: handle technical errors
 	//  check: socket connection, connection refused, connection timeout
 	if responsePair.error != nil {
-		return handleError("%s: error while receiving response - %s", logPrefix, responsePair.error)
+		return responsePair.response, handleError("%s: error while receiving response - %s", logPrefix, responsePair.error)
 	}
 
 	messageToReceive := endpoint.getMessageToReceive(message)
 	slog.Debug(fmt.Sprintf("%s: validating message %s", logPrefix, messageToReceive.ToString()))
 
-	return errors.Join(
+	return responsePair.response, errors.Join(
 		validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
 		validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
 		validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body))

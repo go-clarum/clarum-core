@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/goclarum/clarum/http/message"
+	"net/http"
 	"testing"
 )
 
@@ -21,11 +22,11 @@ type TestReceiveActionBuilder struct {
 }
 
 func (testBuilder *TestReceiveActionBuilder) Message(message *message.RequestMessage) {
-	if err := testBuilder.endpoint.receive(message); err != nil {
+	if _, err := testBuilder.endpoint.receive(message); err != nil {
 		testBuilder.test.Error(err)
 	}
 }
 
-func (builder *ReceiveActionBuilder) Message(message *message.RequestMessage) error {
+func (builder *ReceiveActionBuilder) Message(message *message.RequestMessage) (*http.Request, error) {
 	return builder.endpoint.receive(message)
 }

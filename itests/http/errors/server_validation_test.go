@@ -15,11 +15,11 @@ func TestMethodValidation(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Post("myApp"))
+	_, e2 := errorsServer.Receive().Message(message.Post("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -33,11 +33,11 @@ func TestInvalidStatusCode(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Get("myApp"))
+	_, e2 := errorsServer.Receive().Message(message.Get("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(99))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -50,11 +50,11 @@ func TestStatusCodeValidation(t *testing.T) {
 
 	e1 := errorsClient.Send().Message(message.Get().BaseUrl("http://localhost:8083/myApp"))
 
-	e2 := errorsServer.Receive().Message(message.Get("myApp"))
+	_, e2 := errorsServer.Receive().Message(message.Get("myApp"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusBadRequest))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -69,11 +69,11 @@ func TestPathValidation(t *testing.T) {
 		Message(message.Get("my", "resource", "1234").
 			BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Get("my", "resource", "5433"))
+	_, e2 := errorsServer.Receive().Message(message.Get("my", "resource", "5433"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusNotFound))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusNotFound))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -88,13 +88,13 @@ func TestHeaderMissingValidation(t *testing.T) {
 			BaseUrl("http://localhost:8083").
 			Authorization("Bearer: 123152123123"))
 
-	e2 := errorsServer.Receive().Message(message.Get().
+	_, e2 := errorsServer.Receive().Message(message.Get().
 		Authorization("Bearer: 123152123123").
 		Header("traceid", "777777777"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -109,12 +109,12 @@ func TestHeaderInvalidValidation(t *testing.T) {
 			BaseUrl("http://localhost:8083").
 			Authorization("Bearer: 123152123123"))
 
-	e2 := errorsServer.Receive().Message(message.Get().
+	_, e2 := errorsServer.Receive().Message(message.Get().
 		Authorization("Bearer: 234121"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -129,13 +129,13 @@ func TestQueryParamMissingValidation(t *testing.T) {
 			BaseUrl("http://localhost:8083").
 			QueryParam("param1", "value1"))
 
-	e2 := errorsServer.Receive().Message(message.Get().
+	_, e2 := errorsServer.Receive().Message(message.Get().
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -151,13 +151,13 @@ func TestQueryParamInvalidValueValidation(t *testing.T) {
 			QueryParam("param1", "value1").
 			QueryParam("param2", "value2"))
 
-	e2 := errorsServer.Receive().Message(message.Get().
+	_, e2 := errorsServer.Receive().Message(message.Get().
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value3"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -173,13 +173,13 @@ func TestQueryParamInvalidMultiValueValidation(t *testing.T) {
 			QueryParam("param1", "value1").
 			QueryParam("param2", "value2", "value4"))
 
-	e2 := errorsServer.Receive().Message(message.Get().
+	_, e2 := errorsServer.Receive().Message(message.Get().
 		QueryParam("param1", "value1").
 		QueryParam("param2", "value2", "value3"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusInternalServerError))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusInternalServerError))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -192,12 +192,12 @@ func TestMissingTextRequestPayloadValidation(t *testing.T) {
 	e1 := errorsClient.Send().
 		Message(message.Post().BaseUrl("http://localhost:8083"))
 
-	e2 := errorsServer.Receive().Message(message.Post().
+	_, e2 := errorsServer.Receive().Message(message.Post().
 		Payload("expected payload"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
@@ -211,12 +211,12 @@ func TestWrongTextRequestPayloadValidation(t *testing.T) {
 		Message(message.Post().BaseUrl("http://localhost:8083").
 			Payload("wrong payload"))
 
-	e2 := errorsServer.Receive().Message(message.Post().
+	_, e2 := errorsServer.Receive().Message(message.Post().
 		Payload("expected payload"))
 	e3 := errorsServer.Send().
 		Message(message.Response(http.StatusOK))
 
-	e4 := errorsClient.Receive().
+	_, e4 := errorsClient.Receive().
 		Message(message.Response(http.StatusOK))
 
 	checkErrors(t, expectedError, e1, e2, e3, e4)
