@@ -2,9 +2,7 @@ package message
 
 import (
 	"github.com/goclarum/clarum/http/constants"
-	"maps"
 	"net/http"
-	"reflect"
 	"testing"
 )
 
@@ -55,7 +53,7 @@ func TestRequestBuilder(t *testing.T) {
 		},
 	}
 
-	if !requestsEqual(actual, &expected) {
+	if !actual.Equals(&expected) {
 		t.Errorf("Message is not as expected.")
 	}
 }
@@ -73,25 +71,7 @@ func TestRequestClone(t *testing.T) {
 		t.Errorf("Message has not been cloned.")
 	}
 
-	if !requestsEqual(clonedMessage, message) {
+	if !clonedMessage.Equals(message) {
 		t.Errorf("Messages are not equal.")
 	}
-}
-
-func requestsEqual(m1 *RequestMessage, m2 *RequestMessage) bool {
-
-	if m1.Method != m2.Method {
-		return false
-	} else if m1.Url != m2.Url {
-		return false
-	} else if m1.Path != m2.Path {
-		return false
-	} else if !maps.Equal(m1.Headers, m2.Headers) {
-		return false
-	} else if !reflect.DeepEqual(m1.QueryParams, m2.QueryParams) {
-		return false
-	} else if m1.MessagePayload != m2.MessagePayload {
-		return false
-	}
-	return true
 }

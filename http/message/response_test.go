@@ -2,7 +2,6 @@ package message
 
 import (
 	"github.com/goclarum/clarum/http/constants"
-	"maps"
 	"testing"
 )
 
@@ -22,7 +21,7 @@ func TestBuilder(t *testing.T) {
 		},
 	}
 
-	if !responseEqual(actual, &expected) {
+	if !actual.Equals(&expected) {
 		t.Errorf("Message is not as expected.")
 	}
 }
@@ -39,18 +38,7 @@ func TestClone(t *testing.T) {
 		t.Errorf("Message has not been cloned.")
 	}
 
-	if !responseEqual(clonedMessage, message) {
+	if !clonedMessage.Equals(message) {
 		t.Errorf("Messages are not equal.")
 	}
-}
-
-func responseEqual(m1 *ResponseMessage, m2 *ResponseMessage) bool {
-	if m1.StatusCode != m2.StatusCode {
-		return false
-	} else if !maps.Equal(m1.Headers, m2.Headers) {
-		return false
-	} else if m1.MessagePayload != m2.MessagePayload {
-		return false
-	}
-	return true
 }

@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 )
 
@@ -31,6 +32,11 @@ func (response *ResponseMessage) ETag(value string) *ResponseMessage {
 	return response
 }
 
+func (response *ResponseMessage) Json() *ResponseMessage {
+	response.Message.json()
+	return response
+}
+
 func (response *ResponseMessage) Payload(payload string) *ResponseMessage {
 	response.Message.MessagePayload = payload
 	return response
@@ -41,6 +47,17 @@ func (response *ResponseMessage) Clone() *ResponseMessage {
 		StatusCode: response.StatusCode,
 		Message:    response.Message.clone(),
 	}
+}
+
+func (response *ResponseMessage) Equals(other *ResponseMessage) bool {
+	if response.StatusCode != other.StatusCode {
+		return false
+	} else if !maps.Equal(response.Headers, other.Headers) {
+		return false
+	} else if response.MessagePayload != other.MessagePayload {
+		return false
+	}
+	return true
 }
 
 func (response *ResponseMessage) ToString() string {

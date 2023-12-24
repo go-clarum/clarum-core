@@ -5,6 +5,7 @@ import (
 	"github.com/goclarum/clarum/http/internal/utils"
 	"maps"
 	"net/http"
+	"reflect"
 )
 
 type RequestMessage struct {
@@ -110,6 +111,11 @@ func (request *RequestMessage) QueryParam(key string, values ...string) *Request
 	return request
 }
 
+func (request *RequestMessage) Json() *RequestMessage {
+	request.Message.json()
+	return request
+}
+
 func (request *RequestMessage) Payload(payload string) *RequestMessage {
 	request.Message.MessagePayload = payload
 	return request
@@ -123,6 +129,24 @@ func (request *RequestMessage) Clone() *RequestMessage {
 		QueryParams: maps.Clone(request.QueryParams),
 		Message:     request.Message.clone(),
 	}
+}
+
+func (request *RequestMessage) Equals(other *RequestMessage) bool {
+
+	if request.Method != other.Method {
+		return false
+	} else if request.Url != other.Url {
+		return false
+	} else if request.Path != other.Path {
+		return false
+	} else if !maps.Equal(request.Headers, other.Headers) {
+		return false
+	} else if !reflect.DeepEqual(request.QueryParams, other.QueryParams) {
+		return false
+	} else if request.MessagePayload != other.MessagePayload {
+		return false
+	}
+	return true
 }
 
 func (request *RequestMessage) ToString() string {
