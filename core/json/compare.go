@@ -63,8 +63,6 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 			} else {
 				// we only consider JSON Kinds, since the Unmarshal already parsed & checked them
 				switch actualValueType.Kind() {
-				case reflect.Array:
-					// TODO: impl array handling
 				case reflect.String:
 					expectedString := expectedValue.(string)
 					actualString := actualValue.(string)
@@ -83,6 +81,8 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 					compareErrors = handleValue(getJsonPath(pathParent, key),
 						expectedBool != actualBool,
 						strconv.FormatBool(expectedBool), strconv.FormatBool(actualBool), logResult, compareErrors)
+				case reflect.Slice:
+					// TODO: impl array handling
 				case reflect.Map:
 					compareErrors = compareJsonMaps(getJsonPath(pathParent, key),
 						expectedValue.(map[string]any), actualValue.(map[string]any),
@@ -118,6 +118,10 @@ func convertToJsonType(goType reflect.Type) string {
 		return "boolean"
 	case reflect.Float64:
 		return "number"
+	case reflect.Map:
+		return "object"
+	case reflect.Slice:
+		return "array"
 	default:
 		return goType.String()
 	}
@@ -148,7 +152,7 @@ func handleValue(path string, mismatch bool, expectedValue string, actualValue s
 func toMap(rawJson []byte) (map[string]any, error) {
 	var result any
 	if err := json.Unmarshal(rawJson, &result); err != nil {
-		return nil, handleError("unable to parse JSON - error [%s] - from string [%s]", rawJson, err)
+		return nil, handleError("unable to parse JSON - error [%s] - from string [%s]", err, rawJson)
 	}
 
 	return result.(map[string]any), nil
@@ -165,6 +169,5 @@ func getJsonPath(pathParent string, key string) string {
 
 func handleError(format string, a ...any) error {
 	errorMessage := fmt.Sprintf(format, a...)
-	slog.Error(errorMessage)
 	return errors.New(errorMessage)
 }
