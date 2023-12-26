@@ -41,13 +41,7 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 	strictSizeCheck bool, logResult *strings.Builder, logIndent string, compareErrors []error) []error {
 	currentIndentation := logIndent + "  "
 
-	if strictSizeCheck && len(expected) != len(actual) {
-		logResult.WriteString("{ <-- number of fields does not match\n")
-		compareErrors = append(compareErrors,
-			errors.New(fmt.Sprintf("%s - number of fields does not match", pathParent)))
-	} else {
-		logResult.WriteString("{\n")
-	}
+	compareErrors = handleFieldsCheck(pathParent, expected, actual, strictSizeCheck, logResult, compareErrors)
 
 	// TODO: implement ignore element by jsonPath & ignore value by using @ignore@
 	for key, expectedValue := range expected {
@@ -90,7 +84,8 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 				}
 			}
 		} else {
-			logResult.WriteString(fmt.Sprintf("%s X-- missing field '%s'\n", currentIndentation, key))
+			compareErrors = handleMissingField(getJsonPath(pathParent, key),
+				currentIndentation, logResult, compareErrors)
 		}
 	}
 
@@ -98,20 +93,15 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 	return compareErrors
 }
 
-func handleTypeMismatch(path string, expectedValueType reflect.Type, actualValueType reflect.Type,
-	logResult *strings.Builder, compareErrors []error) []error {
-
-	baseErrorMessage := fmt.Sprintf("type mismatch - expected [%s] but found [%s]",
-		convertToJsonType(expectedValueType), convertToJsonType(actualValueType))
-
-	compareErrors = append(compareErrors, errors.New(fmt.Sprintf("%s - %s", path, baseErrorMessage)))
-	logResult.WriteString(fmt.Sprintf(" <-- %s\n", baseErrorMessage))
-
-	return compareErrors
-}
-
 // When describing types we have to consider that the users will think of JSON types when reading logs & error messages.
 // This is why we have to translate Go types into JSON types.
+//
+// json.Unmarshal returns a map[string]interface{} with all the fields of the JSON object:
+// - number is a reflect.Float64
+// - string is a reflect.String
+// - boolean is a reflect.Bool
+// - array is a reflect.Slice
+// - struct is a reflect.Map
 func convertToJsonType(goType reflect.Type) string {
 	switch goType.Kind() {
 	case reflect.Bool:
@@ -127,13 +117,36 @@ func convertToJsonType(goType reflect.Type) string {
 	}
 }
 
+func handleFieldsCheck(pathParent string, expected map[string]any, actual map[string]any, strictSizeCheck bool, logResult *strings.Builder, compareErrors []error) []error {
+	if strictSizeCheck && len(expected) != len(actual) {
+		logResult.WriteString("{ <-- number of fields does not match\n")
+		compareErrors = append(compareErrors,
+			errors.New(fmt.Sprintf("[%s] - number of fields does not match", pathParent)))
+	} else {
+		logResult.WriteString("{\n")
+	}
+	return compareErrors
+}
+
+func handleTypeMismatch(path string, expectedValueType reflect.Type, actualValueType reflect.Type,
+	logResult *strings.Builder, compareErrors []error) []error {
+
+	baseErrorMessage := fmt.Sprintf("type mismatch - expected [%s] but found [%s]",
+		convertToJsonType(expectedValueType), convertToJsonType(actualValueType))
+
+	compareErrors = append(compareErrors, errors.New(fmt.Sprintf("[%s] - %s", path, baseErrorMessage)))
+	logResult.WriteString(fmt.Sprintf(" <-- %s\n", baseErrorMessage))
+
+	return compareErrors
+}
+
 func handleValue(path string, mismatch bool, expectedValue string, actualValue string, logResult *strings.Builder,
 	compareErrors []error) []error {
 	logResult.WriteString(fmt.Sprintf("%s,", actualValue))
 
 	if mismatch {
 		compareErrors = append(compareErrors,
-			errors.New(fmt.Sprintf("%s - value mismatch - expected [%s] but received [%s]", path, expectedValue, actualValue)))
+			errors.New(fmt.Sprintf("[%s] - value mismatch - expected [%s] but received [%s]", path, expectedValue, actualValue)))
 		logResult.WriteString(fmt.Sprintf(" <-- value mismatch - expected [%s]", expectedValue))
 	}
 
@@ -141,14 +154,14 @@ func handleValue(path string, mismatch bool, expectedValue string, actualValue s
 	return compareErrors
 }
 
-// We rely on json.Unmarshal to detect invalid json structures
-// json.Unmarshal returns a map[string]interface{} with all the fields of the JSON object
-//
-// number is a reflect.Float64
-// string is a reflect.String
-// boolean is a reflect.Bool
-// array is a reflect.Array
-// struct is a reflect.Struct
+func handleMissingField(path string, currentIndentation string, logResult *strings.Builder, compareErrors []error) []error {
+	compareErrors = append(compareErrors, errors.New(fmt.Sprintf("[%s] - field is missing", path)))
+	logResult.WriteString(fmt.Sprintf("%s X-- missing field '%s'\n", currentIndentation, path))
+
+	return compareErrors
+}
+
+// We rely on json.Unmarshal to detect invalid json structures here.
 func toMap(rawJson []byte) (map[string]any, error) {
 	var result any
 	if err := json.Unmarshal(rawJson, &result); err != nil {
