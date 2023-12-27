@@ -15,7 +15,8 @@ func TestInvalidExpectedJSON(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -32,7 +33,8 @@ func TestInvalidActualJSON(t *testing.T) {
 		"\"aliases\": [\"Batman\"," +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -42,7 +44,8 @@ func TestEmptyObject(t *testing.T) {
 	expectedValue := []byte("{}")
 	actualValue := []byte("{}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	if err != nil {
@@ -58,7 +61,8 @@ func TestExpectEmptyObject(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -73,7 +77,8 @@ func TestReceiveEmptyObject(t *testing.T) {
 		"}")
 	actualValue := []byte("{}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -97,7 +102,8 @@ func TestDeepEmptyObject(t *testing.T) {
 		"}" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -118,7 +124,8 @@ func TestMissingObject(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -150,7 +157,8 @@ func TestOKValidationAllTypes(t *testing.T) {
 		"}" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	if err != nil {
@@ -158,7 +166,7 @@ func TestOKValidationAllTypes(t *testing.T) {
 	}
 }
 
-// flaky test because of the order of fields inside the JSON object
+// flaky test because the order of fields inside the JSON object changes on unmarshalling
 func TestErrorValidationAllTypes(t *testing.T) {
 	expectedError := "[$.name] - value mismatch - expected [Bruce] but received [Bruce Wayne]\n" +
 		"[$.age] - value mismatch - expected [37] but received [38]\n" +
@@ -189,7 +197,8 @@ func TestErrorValidationAllTypes(t *testing.T) {
 		"}" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -205,7 +214,8 @@ func TestKindValidationBooleanType(t *testing.T) {
 		"\"active\": \"true\"" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -221,7 +231,8 @@ func TestKindValidationNumberType(t *testing.T) {
 		" \"age\": 38" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -241,7 +252,8 @@ func TestKindValidationObjectType(t *testing.T) {
 		"}" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)
@@ -259,7 +271,8 @@ func TestKindValidationArrayType(t *testing.T) {
 		"]" +
 		"}")
 
-	logResult, err := Compare(expectedValue, actualValue)
+	comparator := Builder().Comparator()
+	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 
 	checkError(t, err, expectedError)

@@ -10,13 +10,23 @@ import (
 	"strings"
 )
 
+type options struct {
+	strictSizeCheck bool
+	pathsToIgnore   []string
+	logger          *slog.Logger
+}
+
+type Comparator struct {
+	options
+}
+
 // TODO: documentation
 // The problems that we had with a basic implementation:
 //   - we only know if they are equal or not, nothing more, no information about why
 //   - we cannot use this to ignore fields/values, ex. timestamp values
-func Compare(expected []byte, actual []byte) (string, error) {
+func (comparator *Comparator) Compare(expected []byte, actual []byte) (string, error) {
 	var expectedMap, actualMap map[string]any
-	slog.Debug(fmt.Sprintf("comparing [%s] to [%s]", expectedMap, actualMap))
+	comparator.logger.Debug(fmt.Sprintf("json comparator - comparing [%s] to [%s]", expectedMap, actualMap))
 
 	expectedMap, err1 := toMap(expected)
 	if err1 != nil {
@@ -30,23 +40,29 @@ func Compare(expected []byte, actual []byte) (string, error) {
 
 	var logResult strings.Builder
 
-	compareErrors := compareJsonMaps("$", expectedMap, actualMap,
-		true, &logResult, "", []error{})
+	compareErrors := comparator.compareJsonMaps("$", expectedMap, actualMap,
+		&logResult, "", []error{})
+
+	if len(compareErrors) > 0 {
+		comparator.logger.Debug(fmt.Sprintf("json comparator - JSON structures do not match"))
+	} else {
+		comparator.logger.Debug(fmt.Sprintf("json comparator - JSON structures match"))
+	}
 
 	return logResult.String(), errors.Join(compareErrors...)
 }
 
 // todo: what happens when expected and actual each have one different field - unexpected field validation
-func compareJsonMaps(pathParent string, expected map[string]any, actual map[string]any,
-	strictSizeCheck bool, logResult *strings.Builder, logIndent string, compareErrors []error) []error {
-	currentIndentation := logIndent + "  "
+func (comparator *Comparator) compareJsonMaps(pathParent string, expected map[string]any, actual map[string]any,
+	logResult *strings.Builder, logIndent string, compareErrors []error) []error {
+	currIndent := logIndent + "  "
 
-	compareErrors = handleFieldsCheck(pathParent, expected, actual, strictSizeCheck, logResult, compareErrors)
+	compareErrors = handleFieldsCheck(pathParent, expected, actual, comparator.strictSizeCheck, logResult, compareErrors)
 
 	// TODO: implement ignore element by jsonPath & ignore value by using @ignore@
 	for key, expectedValue := range expected {
 		if actualValue, exists := actual[key]; exists {
-			logResult.WriteString(fmt.Sprintf("%s\"%s\": ", currentIndentation, key))
+			logResult.WriteString(fmt.Sprintf("%s\"%s\": ", currIndent, key))
 
 			expectedValueType := reflect.TypeOf(expectedValue)
 			actualValueType := reflect.TypeOf(actualValue)
@@ -78,14 +94,14 @@ func compareJsonMaps(pathParent string, expected map[string]any, actual map[stri
 				case reflect.Slice:
 					// TODO: impl array handling
 				case reflect.Map:
-					compareErrors = compareJsonMaps(getJsonPath(pathParent, key),
+					compareErrors = comparator.compareJsonMaps(getJsonPath(pathParent, key),
 						expectedValue.(map[string]any), actualValue.(map[string]any),
-						strictSizeCheck, logResult, currentIndentation, compareErrors)
+						logResult, currIndent, compareErrors)
 				}
 			}
 		} else {
 			compareErrors = handleMissingField(getJsonPath(pathParent, key),
-				currentIndentation, logResult, compareErrors)
+				currIndent, logResult, compareErrors)
 		}
 	}
 
