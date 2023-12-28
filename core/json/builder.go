@@ -9,15 +9,21 @@ type ComparatorBuilder struct {
 func Builder() *ComparatorBuilder {
 	return &ComparatorBuilder{
 		options{
-			strictSizeCheck: true,
-			pathsToIgnore:   []string{},
-			logger:          slog.Default(),
+			strictObjectSizeCheck: true,
+			strictArrayCheck:      true,
+			pathsToIgnore:         []string{},
+			logger:                slog.Default(),
 		},
 	}
 }
 
-func (builder *ComparatorBuilder) StrictSizeCheck(check bool) *ComparatorBuilder {
-	builder.strictSizeCheck = check
+func (builder *ComparatorBuilder) StrictObjectSizeCheck(check bool) *ComparatorBuilder {
+	builder.strictObjectSizeCheck = check
+	return builder
+}
+
+func (builder *ComparatorBuilder) StrictArrayCheck(check bool) *ComparatorBuilder {
+	builder.strictArrayCheck = check
 	return builder
 }
 

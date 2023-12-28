@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestInvalidExpectedJSON(t *testing.T) {
+func TestInvalidExpectedJson(t *testing.T) {
 	expectedError := "unable to parse JSON - error [invalid character '}' in literal true (expecting 'e')] - from string [{\"active\": tru}]"
 
 	expectedValue := []byte("{" +
@@ -22,7 +22,7 @@ func TestInvalidExpectedJSON(t *testing.T) {
 	checkError(t, err, expectedError)
 }
 
-func TestInvalidActualJSON(t *testing.T) {
+func TestInvalidActualJson(t *testing.T) {
 	expectedError := "unable to parse JSON - error [invalid character '}' looking for beginning of value] - from string [{\"active\": true,\"aliases\": [\"Batman\",}]"
 
 	expectedValue := []byte("{" +
