@@ -16,8 +16,8 @@ func TestInvalidExpectedJson(t *testing.T) {
 		"}")
 
 	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	recorderResult, err := comparator.Compare(expectedValue, actualValue)
+	fmt.Println(recorderResult)
 
 	checkError(t, err, expectedError)
 }
@@ -61,7 +61,7 @@ func TestExpectEmptyObject(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	comparator := Builder().Comparator()
+	comparator := Builder().Recorder(NewDefaultRecorder()).Comparator()
 	logResult, err := comparator.Compare(expectedValue, actualValue)
 	fmt.Println(logResult)
 

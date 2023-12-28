@@ -12,6 +12,7 @@ func Builder() *ComparatorBuilder {
 			strictObjectSizeCheck: true,
 			pathsToIgnore:         []string{},
 			logger:                slog.Default(),
+			recorder:              &noopRecorder{},
 		},
 	}
 }
@@ -28,6 +29,11 @@ func (builder *ComparatorBuilder) PathsToIgnore(paths ...string) *ComparatorBuil
 
 func (builder *ComparatorBuilder) Logger(logger *slog.Logger) *ComparatorBuilder {
 	builder.logger = logger
+	return builder
+}
+
+func (builder *ComparatorBuilder) Recorder(recorder Recorder) *ComparatorBuilder {
+	builder.recorder = recorder
 	return builder
 }
 
