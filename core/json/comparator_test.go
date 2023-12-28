@@ -131,13 +131,16 @@ func TestMissingObject(t *testing.T) {
 	checkError(t, err, expectedError)
 }
 
-// TODO: add array
 func TestOKValidationAllTypes(t *testing.T) {
 	expectedValue := []byte("{" +
 		"\"active\": true," +
 		" \"name\": \"Bruce Wayne\"," +
 		" \"age\": 38," +
 		" \"height\": 1.879," +
+		"\"aliases\": [" +
+		"\"Batman\"," +
+		"\"The Dark Knight\"" +
+		"]," +
 		"\"location\": {" +
 		"\"street\": \"Mountain Drive\"," +
 		"\"number\": 1007," +
@@ -148,6 +151,10 @@ func TestOKValidationAllTypes(t *testing.T) {
 	actualValue := []byte("{" +
 		"\"active\": true," +
 		" \"name\": \"Bruce Wayne\"," +
+		"\"aliases\": [" +
+		"\"Batman\"," +
+		"\"The Dark Knight\"" +
+		"]," +
 		" \"age\": 38," +
 		" \"height\": 1.879," +
 		"\"location\": {" +
@@ -281,8 +288,7 @@ func TestKindValidationArrayType(t *testing.T) {
 func checkError(t *testing.T, err error, expectedError string) {
 	if err == nil {
 		t.Error("Error expected, but there was none.")
-	}
-	if err.Error() != expectedError {
+	} else if err.Error() != expectedError {
 		t.Error(err)
 	}
 }

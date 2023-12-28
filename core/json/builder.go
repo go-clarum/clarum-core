@@ -10,7 +10,6 @@ func Builder() *ComparatorBuilder {
 	return &ComparatorBuilder{
 		options{
 			strictObjectSizeCheck: true,
-			strictArrayCheck:      true,
 			pathsToIgnore:         []string{},
 			logger:                slog.Default(),
 		},
@@ -19,11 +18,6 @@ func Builder() *ComparatorBuilder {
 
 func (builder *ComparatorBuilder) StrictObjectSizeCheck(check bool) *ComparatorBuilder {
 	builder.strictObjectSizeCheck = check
-	return builder
-}
-
-func (builder *ComparatorBuilder) StrictArrayCheck(check bool) *ComparatorBuilder {
-	builder.strictArrayCheck = check
 	return builder
 }
 
