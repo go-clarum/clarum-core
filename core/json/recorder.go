@@ -8,13 +8,13 @@ import (
 
 type Recorder interface {
 	AppendFieldName(indent string, fieldName string) Recorder
-	AppendValue(indent string, value any, kind reflect.Kind) Recorder
+	AppendValue(indent string, path string, value any, kind reflect.Kind) Recorder
 	AppendValidationErrorSignal(message string) Recorder
 	AppendMissingFieldErrorSignal(indent string, path string) Recorder
-	AppendStartObject() Recorder
-	AppendEndObject(indent string) Recorder
-	AppendStartArray() Recorder
-	AppendEndArray(indent string) Recorder
+	AppendStartObject(indent string, path string) Recorder
+	AppendEndObject(indent string, path string) Recorder
+	AppendStartArray(indent string, path string) Recorder
+	AppendEndArray(indent string, path string) Recorder
 	AppendNewLine() Recorder
 	GetLog() string
 }
@@ -39,13 +39,22 @@ func (recorder *defaultRecorder) AppendFieldName(indent string, fieldName string
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendValue(indent string, value any, kind reflect.Kind) Recorder {
+func (recorder *defaultRecorder) AppendValue(indent string, path string, value any, kind reflect.Kind) Recorder {
+	childOfArray := pathIsArrayChild(path)
+
+	var indentToSet string
+	if childOfArray {
+		indentToSet = indent
+	} else {
+		indentToSet = ""
+	}
+
 	if kind == reflect.Map {
-		recorder.logResult.WriteString(fmt.Sprintf("%sobject,", indent))
+		recorder.logResult.WriteString(fmt.Sprintf("%sobject,", indentToSet))
 	} else if kind == reflect.Slice {
-		recorder.logResult.WriteString(fmt.Sprintf("%sarray,", indent))
+		recorder.logResult.WriteString(fmt.Sprintf("%sarray,", indentToSet))
 	} else if kind != reflect.Invalid {
-		recorder.logResult.WriteString(fmt.Sprintf("%s%v,", indent, value))
+		recorder.logResult.WriteString(fmt.Sprintf("%s%v,", indentToSet, value))
 	}
 	return recorder
 }
@@ -60,23 +69,47 @@ func (recorder *defaultRecorder) AppendMissingFieldErrorSignal(indent string, pa
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendStartObject() Recorder {
-	recorder.logResult.WriteString("{")
+func (recorder *defaultRecorder) AppendStartObject(indent string, path string) Recorder {
+	childOfArray := pathIsArrayChild(path)
+
+	if childOfArray {
+		recorder.logResult.WriteString(fmt.Sprintf("%s{", indent))
+	} else {
+		recorder.logResult.WriteString(fmt.Sprintf("%s{", ""))
+	}
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendEndObject(indent string) Recorder {
-	recorder.logResult.WriteString(fmt.Sprintf("%s}\n", indent))
+func (recorder *defaultRecorder) AppendEndObject(indent string, path string) Recorder {
+	root := pathIsRoot(path)
+
+	if root {
+		recorder.logResult.WriteString(fmt.Sprintf("%s}\n", ""))
+	} else {
+		recorder.logResult.WriteString(fmt.Sprintf("%s},\n", indent))
+	}
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendStartArray() Recorder {
-	recorder.logResult.WriteString("[")
+func (recorder *defaultRecorder) AppendStartArray(indent string, path string) Recorder {
+	childOfArray := pathIsArrayChild(path)
+
+	if childOfArray {
+		recorder.logResult.WriteString(fmt.Sprintf("%s[", indent))
+	} else {
+		recorder.logResult.WriteString(fmt.Sprintf("%s[", ""))
+	}
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendEndArray(indent string) Recorder {
-	recorder.logResult.WriteString(fmt.Sprintf("%s]\n", indent))
+func (recorder *defaultRecorder) AppendEndArray(indent string, path string) Recorder {
+	root := pathIsRoot(path)
+
+	if root {
+		recorder.logResult.WriteString(fmt.Sprintf("%s]\n", indent))
+	} else {
+		recorder.logResult.WriteString(fmt.Sprintf("%s],\n", indent))
+	}
 	return recorder
 }
 
@@ -93,7 +126,7 @@ func (recorder *noopRecorder) AppendFieldName(indent string, fieldName string) R
 	return recorder
 }
 
-func (recorder *noopRecorder) AppendValue(indent string, value any, kind reflect.Kind) Recorder {
+func (recorder *noopRecorder) AppendValue(indent string, path string, value any, kind reflect.Kind) Recorder {
 	return recorder
 }
 
@@ -105,19 +138,19 @@ func (recorder *noopRecorder) AppendMissingFieldErrorSignal(indent string, path 
 	return recorder
 }
 
-func (recorder *noopRecorder) AppendStartObject() Recorder {
+func (recorder *noopRecorder) AppendStartObject(indent string, path string) Recorder {
 	return recorder
 }
 
-func (recorder *noopRecorder) AppendEndObject(indent string) Recorder {
+func (recorder *noopRecorder) AppendEndObject(indent string, path string) Recorder {
 	return recorder
 }
 
-func (recorder *noopRecorder) AppendStartArray() Recorder {
+func (recorder *noopRecorder) AppendStartArray(indent string, path string) Recorder {
 	return recorder
 }
 
-func (recorder *noopRecorder) AppendEndArray(indent string) Recorder {
+func (recorder *noopRecorder) AppendEndArray(indent string, path string) Recorder {
 	return recorder
 }
 

@@ -2,6 +2,7 @@ package json
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -15,11 +16,7 @@ func TestInvalidExpectedJson(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	comparator := Builder().Comparator()
-	recorderResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(recorderResult)
-
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, "")
 }
 
 func TestInvalidActualJson(t *testing.T) {
@@ -33,24 +30,15 @@ func TestInvalidActualJson(t *testing.T) {
 		"\"aliases\": [\"Batman\"," +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
-
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, "")
 }
 
 func TestEmptyObject(t *testing.T) {
 	expectedValue := []byte("{}")
 	actualValue := []byte("{}")
+	expectedRecorderLog := "{\n}\n"
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
-
-	if err != nil {
-		t.Error(err)
-	}
+	testComparator(t, expectedValue, actualValue, "", expectedRecorderLog)
 }
 
 func TestExpectEmptyObject(t *testing.T) {
@@ -61,11 +49,9 @@ func TestExpectEmptyObject(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	comparator := Builder().Recorder(NewDefaultRecorder()).Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{ <-- number of fields does not match\n}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestReceiveEmptyObject(t *testing.T) {
@@ -77,11 +63,9 @@ func TestReceiveEmptyObject(t *testing.T) {
 		"}")
 	actualValue := []byte("{}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{ <-- number of fields does not match\n   X-- missing field [active]\n}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestDeepEmptyObject(t *testing.T) {
@@ -102,11 +86,17 @@ func TestDeepEmptyObject(t *testing.T) {
 		"}" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	recorderLog := testComparator(t, expectedValue, actualValue, expectedError, "")
 
-	checkError(t, err, expectedError)
+	if !strings.Contains(recorderLog, "  \"location\": { <-- number of fields does not match\n") {
+		t.Error("missing: number of fields does not match errors")
+	}
+	if !strings.Contains(recorderLog, "     X-- missing field [street]\n") {
+		t.Error("missing: missing field [street]")
+	}
+	if !strings.Contains(recorderLog, "     X-- missing field [number]\n") {
+		t.Error("missing: missing field [number]")
+	}
 }
 
 func TestMissingObject(t *testing.T) {
@@ -124,11 +114,12 @@ func TestMissingObject(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{ <-- number of fields does not match\n" +
+		"  \"active\": true,\n" +
+		"   X-- missing field [location]" +
+		"\n}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestOKValidationAllTypes(t *testing.T) {
@@ -164,13 +155,8 @@ func TestOKValidationAllTypes(t *testing.T) {
 		"}" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
-
-	if err != nil {
-		t.Error(err)
-	}
+	// we ignore the recorder log because the order of the elements is always different
+	testComparator(t, expectedValue, actualValue, "", "")
 }
 
 // flaky test because the order of fields inside the JSON object changes on unmarshalling
@@ -204,11 +190,20 @@ func TestErrorValidationAllTypes(t *testing.T) {
 		"}" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	recorderLog := testComparator(t, expectedValue, actualValue, expectedError, "")
 
-	checkError(t, err, expectedError)
+	if !strings.Contains(recorderLog, "  \"name\": Bruce Wayne, <-- value mismatch - expected [Bruce]\n") {
+		t.Error("missing: expected [Bruce]")
+	}
+	if !strings.Contains(recorderLog, "  \"age\": 38, <-- value mismatch - expected [37]\n") {
+		t.Error("missing: expected [37]")
+	}
+	if !strings.Contains(recorderLog, "    \"number\": 1008, <-- value mismatch - expected [1007]\n") {
+		t.Error("missing: expected [1007]")
+	}
+	if !strings.Contains(recorderLog, "    \"hidden\": true, <-- value mismatch - expected [false]\n") {
+		t.Error("missing: expected [false]")
+	}
 }
 
 func TestKindValidationBooleanType(t *testing.T) {
@@ -221,11 +216,11 @@ func TestKindValidationBooleanType(t *testing.T) {
 		"\"active\": \"true\"" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"active\":  <-- type mismatch - expected [boolean] but found [string]\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestKindValidationNumberType(t *testing.T) {
@@ -238,11 +233,11 @@ func TestKindValidationNumberType(t *testing.T) {
 		" \"age\": 38" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"age\":  <-- type mismatch - expected [string] but found [number]\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestKindValidationObjectType(t *testing.T) {
@@ -259,11 +254,11 @@ func TestKindValidationObjectType(t *testing.T) {
 		"}" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"location\":  <-- type mismatch - expected [string] but found [object]\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestKindValidationArrayType(t *testing.T) {
@@ -278,17 +273,38 @@ func TestKindValidationArrayType(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"aliases\":  <-- type mismatch - expected [string] but found [array]\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+
 }
 
 func checkError(t *testing.T, err error, expectedError string) {
-	if err == nil {
-		t.Error("Error expected, but there was none.")
-	} else if err.Error() != expectedError {
+	if len(expectedError) == 0 && err != nil { // no error expected
 		t.Error(err)
+	} else if len(expectedError) > 0 && err == nil {
+		t.Error("Error expected, but there was none.")
+	} else if len(expectedError) > 0 && err.Error() != expectedError {
+		t.Error(err)
+	}
+}
+
+func testComparator(t *testing.T, expectedValue []byte, actualValue []byte, expectedError string,
+	expectedRecorderLog string) string {
+	comparator := Builder().Recorder(NewDefaultRecorder()).Comparator()
+	recorderResult, err := comparator.Compare(expectedValue, actualValue)
+
+	checkError(t, err, expectedError)
+	checkRecorderLog(t, expectedRecorderLog, recorderResult)
+
+	return recorderResult
+}
+
+func checkRecorderLog(t *testing.T, expected string, actual string) {
+	fmt.Println(actual)
+	if len(expected) > 0 && expected != actual {
+		t.Error("Recorder log does not match")
 	}
 }

@@ -1,7 +1,7 @@
 package json
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -18,11 +18,12 @@ func TestEmptyInExpectedJson(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"aliases\": [ <-- size mismatch - expected [0]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestEmptyInActualJson(t *testing.T) {
@@ -38,11 +39,12 @@ func TestEmptyInActualJson(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n  " +
+		"\"aliases\": [ <-- size mismatch - expected [1]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestTypeMismatchJson(t *testing.T) {
@@ -70,11 +72,16 @@ func TestTypeMismatchJson(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"aliases\": [\n" +
+		"    Batman,\n" +
+		"    123, <-- value type mismatch - expected [string] but found [number]\n" +
+		"    object, <-- value type mismatch - expected [string] but found [object]\n" +
+		"    array, <-- value type mismatch - expected [string] but found [array]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestStringValidation(t *testing.T) {
@@ -93,11 +100,14 @@ func TestStringValidation(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"aliases\": [\n" +
+		"    Batman,\n" +
+		"    Robin, <-- value mismatch - expected [The Dark Knight]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestNumberValidation(t *testing.T) {
@@ -121,11 +131,16 @@ func TestNumberValidation(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"measures\": [\n" +
+		"    45,\n" +
+		"    83, <-- value mismatch - expected [82]\n" +
+		"    32.2,\n" +
+		"    64.2, <-- value mismatch - expected [64.1]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestBoolValidation(t *testing.T) {
@@ -144,11 +159,14 @@ func TestBoolValidation(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	expectedRecorderLog := "{\n" +
+		"  \"someBooleanArray\": [\n" +
+		"    true,\n" +
+		"    false, <-- value mismatch - expected [true]\n" +
+		"  ],\n" +
+		"}\n"
 
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestDeepArrayValidation(t *testing.T) {
@@ -178,12 +196,20 @@ func TestDeepArrayValidation(t *testing.T) {
 		"]" +
 		"]" +
 		"}")
+	expectedRecorderLog := "{\n" +
+		"  \"parent\": [\n" +
+		"    [\n" +
+		"      child11,\n" +
+		"      child12,\n" +
+		"    ],\n" +
+		"    [\n" +
+		"      child21,\n" +
+		"      123, <-- value type mismatch - expected [string] but found [number]\n" +
+		"    ],\n" +
+		"  ],\n" +
+		"}\n"
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
-
-	checkError(t, err, expectedError)
+	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
 }
 
 func TestObjectValidation(t *testing.T) {
@@ -223,9 +249,28 @@ func TestObjectValidation(t *testing.T) {
 		"]" +
 		"}")
 
-	comparator := Builder().Comparator()
-	logResult, err := comparator.Compare(expectedValue, actualValue)
-	fmt.Println(logResult)
+	// we ignore the recorder log because the order of the elements in the object is always different
+	recorderResult := testComparator(t, expectedValue, actualValue, expectedError, "")
 
-	checkError(t, err, expectedError)
+	if !strings.Contains(recorderResult, "\n    },\n    {\n      ") {
+		t.Error("indentation between objects is wrong")
+	}
+	if !strings.Contains(recorderResult, "\n    },\n  ],\n}\n") {
+		t.Error("indentation at the end is wrong")
+	}
+}
+
+func TestRootArrayValidation(t *testing.T) {
+	expectedValue := []byte("[" +
+		"\"Batcave\"" +
+		"]")
+	actualValue := []byte("[" +
+		"\"Batcave\"" +
+		"]")
+
+	expectedRecorderLog := "[\n" +
+		"  Batcave,\n" +
+		"]\n"
+
+	testComparator(t, expectedValue, actualValue, "", expectedRecorderLog)
 }
