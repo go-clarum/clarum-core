@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+const ignoreFlag = "@ignore@"
+
 type options struct {
 	strictObjectSizeCheck bool
 	pathsToIgnore         []string
@@ -69,14 +71,13 @@ func (comparator *Comparator) Compare(expected []byte, actual []byte) (string, e
 	return comparator.recorder.GetLog(), errors.Join(compareErrors...)
 }
 
-func (comparator *Comparator) compareJsonMaps(pathParent string, expected map[string]any, actual map[string]any,
+func (comparator *Comparator) compareJsonMaps(parentPath string, expected map[string]any, actual map[string]any,
 	logIndent string, compareErrors []error) []error {
 	currIndent := logIndent + "  "
 
-	compareErrors = handleFieldsCheck(pathParent, expected, actual, comparator.strictObjectSizeCheck,
+	compareErrors = handleFieldsCheck(parentPath, expected, actual, comparator.strictObjectSizeCheck,
 		comparator.recorder, logIndent, compareErrors)
 
-	// TODO: implement ignore element by jsonPath & ignore value by using @ignore@
 	for key, expectedValue := range expected {
 		if actualValue, exists := actual[key]; exists {
 			comparator.recorder.AppendFieldName(currIndent, key)
@@ -84,8 +85,14 @@ func (comparator *Comparator) compareJsonMaps(pathParent string, expected map[st
 			expectedValueType := reflect.TypeOf(expectedValue)
 			actualValueType := reflect.TypeOf(actualValue)
 
+			ignoreValueValidation := ignoreValue(expectedValueType, expectedValue)
+			if ignoreValueValidation {
+				comparator.recorder.AppendIgnoreField(currIndent, parentPath)
+				continue
+			}
+
 			if expectedValueType.Kind() != actualValueType.Kind() {
-				compareErrors = handleTypeMismatch(path.GetObjectChildPath(pathParent, key),
+				compareErrors = handleTypeMismatch(path.GetObjectChildPath(parentPath, key),
 					expectedValueType, actualValueType, comparator.recorder, compareErrors)
 			} else {
 				// we only consider JSON Kinds, since the Unmarshal already parsed & checked them
@@ -94,53 +101,53 @@ func (comparator *Comparator) compareJsonMaps(pathParent string, expected map[st
 					expectedString := expectedValue.(string)
 					actualString := actualValue.(string)
 
-					compareErrors = compareValue(path.GetObjectChildPath(pathParent, key),
+					compareErrors = compareValue(path.GetObjectChildPath(parentPath, key),
 						expectedString != actualString,
 						expectedString, actualString, comparator.recorder, logIndent, compareErrors)
 				case reflect.Float64:
-					compareErrors = compareValue(path.GetObjectChildPath(pathParent, key),
+					compareErrors = compareValue(path.GetObjectChildPath(parentPath, key),
 						expectedValue.(float64) != actualValue.(float64),
 						formatFloat(expectedValue), formatFloat(actualValue), comparator.recorder, logIndent, compareErrors)
 				case reflect.Bool:
 					expectedBool := expectedValue.(bool)
 					actualBool := actualValue.(bool)
 
-					compareErrors = compareValue(path.GetObjectChildPath(pathParent, key),
+					compareErrors = compareValue(path.GetObjectChildPath(parentPath, key),
 						expectedBool != actualBool,
 						strconv.FormatBool(expectedBool), strconv.FormatBool(actualBool), comparator.recorder, logIndent, compareErrors)
 				case reflect.Slice:
-					compareErrors = comparator.compareSlices(path.GetObjectChildPath(pathParent, key),
+					compareErrors = comparator.compareSlices(path.GetObjectChildPath(parentPath, key),
 						expectedValue.([]interface{}), actualValue.([]interface{}),
 						currIndent, compareErrors)
 				case reflect.Map:
-					compareErrors = comparator.compareJsonMaps(path.GetObjectChildPath(pathParent, key),
+					compareErrors = comparator.compareJsonMaps(path.GetObjectChildPath(parentPath, key),
 						expectedValue.(map[string]any), actualValue.(map[string]any),
 						currIndent, compareErrors)
 				}
 			}
 		} else {
-			compareErrors = handleMissingField(path.GetObjectChildPath(pathParent, key),
+			compareErrors = handleMissingField(path.GetObjectChildPath(parentPath, key),
 				key, currIndent, comparator.recorder, compareErrors)
 		}
 	}
 
-	comparator.recorder.AppendEndObject(logIndent, pathParent)
+	comparator.recorder.AppendEndObject(logIndent, parentPath)
 	return compareErrors
 }
 
 // Arrays in json are represented as slices of type interface because they can contain anything.
 // Each item in the slice can be of any valid JSON type.
-func (comparator *Comparator) compareSlices(jsonPath string, expected []interface{}, actual []interface{},
+func (comparator *Comparator) compareSlices(parentPath string, expected []interface{}, actual []interface{},
 	currIndent string, compareErrors []error) []error {
-	comparator.recorder.AppendStartArray(currIndent, jsonPath)
+	comparator.recorder.AppendStartArray(currIndent, parentPath)
 
 	expectedLen := len(expected)
 	actualLen := len(actual)
 	if expectedLen != actualLen {
 		comparator.recorder.AppendValidationErrorSignal(fmt.Sprintf("size mismatch - expected [%d]", expectedLen)).
-			AppendEndArray(currIndent, jsonPath)
+			AppendEndArray(currIndent, parentPath)
 		return append(compareErrors,
-			errors.New(fmt.Sprintf("[%s] - array size mismatch - expected [%d] but received [%d]", jsonPath, expectedLen, actualLen)))
+			errors.New(fmt.Sprintf("[%s] - array size mismatch - expected [%d] but received [%d]", parentPath, expectedLen, actualLen)))
 	} else {
 		comparator.recorder.AppendNewLine()
 	}
@@ -150,8 +157,14 @@ func (comparator *Comparator) compareSlices(jsonPath string, expected []interfac
 		expectedValueType := reflect.TypeOf(expectedValue)
 		actualValue := actual[i]
 		actualValueType := reflect.TypeOf(actualValue)
+		jsonPathArray := path.GetArrayIndexPath(parentPath, i)
 
-		jsonPathArray := path.GetArrayIndexPath(jsonPath, i)
+		ignoreValueValidation := ignoreValue(expectedValueType, expectedValue)
+		if ignoreValueValidation {
+			comparator.recorder.AppendIgnoreField(valIdent, jsonPathArray)
+			continue
+		}
+
 		if expectedValueType.Kind() != actualValueType.Kind() {
 			comparator.recorder.AppendValue(valIdent, jsonPathArray, actualValue, actualValueType.Kind())
 			baseErrorMessage := fmt.Sprintf("value type mismatch - expected [%s] but found [%s]",
@@ -191,7 +204,7 @@ func (comparator *Comparator) compareSlices(jsonPath string, expected []interfac
 			}
 		}
 	}
-	comparator.recorder.AppendEndArray(currIndent, jsonPath)
+	comparator.recorder.AppendEndArray(currIndent, parentPath)
 	return compareErrors
 }
 
@@ -280,6 +293,14 @@ func unmarshalJson(rawJson []byte) (any, error) {
 // We have to trim trailing zeroes from the parsed float64 number before logging them.
 func formatFloat(expectedValue any) string {
 	return strconv.FormatFloat(expectedValue.(float64), 'f', -1, 64)
+}
+
+func ignoreValue(valueType reflect.Type, value any) bool {
+	if valueType.Kind() == reflect.String {
+		return value == ignoreFlag
+	}
+
+	return false
 }
 
 func handleError(format string, a ...any) error {

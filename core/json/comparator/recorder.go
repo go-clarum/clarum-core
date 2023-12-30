@@ -9,6 +9,7 @@ import (
 
 type Recorder interface {
 	AppendFieldName(indent string, fieldName string) Recorder
+	AppendIgnoreField(indent string, jsonPath string) Recorder
 	AppendValue(indent string, path string, value any, kind reflect.Kind) Recorder
 	AppendValidationErrorSignal(message string) Recorder
 	AppendMissingFieldErrorSignal(indent string, path string) Recorder
@@ -37,6 +38,18 @@ func (recorder *defaultRecorder) GetLog() string {
 
 func (recorder *defaultRecorder) AppendFieldName(indent string, fieldName string) Recorder {
 	recorder.logResult.WriteString(fmt.Sprintf("%s\"%s\": ", indent, fieldName))
+	return recorder
+}
+
+func (recorder *defaultRecorder) AppendIgnoreField(indent string, jsonPath string) Recorder {
+	childOfArray := path.IsChildOfArray(jsonPath)
+
+	if childOfArray {
+		recorder.logResult.WriteString(fmt.Sprintf("%s <-- ignoring field\n", indent))
+	} else {
+		recorder.logResult.WriteString(fmt.Sprintf("%s <-- ignoring field\n", ""))
+	}
+
 	return recorder
 }
 
@@ -124,6 +137,10 @@ func (recorder *noopRecorder) GetLog() string {
 }
 
 func (recorder *noopRecorder) AppendFieldName(indent string, fieldName string) Recorder {
+	return recorder
+}
+
+func (recorder *noopRecorder) AppendIgnoreField(indent string, jsonPath string) Recorder {
 	return recorder
 }
 
