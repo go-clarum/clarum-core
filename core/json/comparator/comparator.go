@@ -69,8 +69,6 @@ func (comparator *Comparator) Compare(expected []byte, actual []byte) (string, e
 	return comparator.recorder.GetLog(), errors.Join(compareErrors...)
 }
 
-// TODO: implement strictObjectSizeCheck
-// todo: what happens when expected and actual each have one different field (size is the same) - actual map has unexpected fields
 func (comparator *Comparator) compareJsonMaps(pathParent string, expected map[string]any, actual map[string]any,
 	logIndent string, compareErrors []error) []error {
 	currIndent := logIndent + "  "

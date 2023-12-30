@@ -99,6 +99,41 @@ func TestDeepEmptyObject(t *testing.T) {
 	}
 }
 
+func TestNotStrictFieldCheck(t *testing.T) {
+	expectedError := "[$.location.street] - field is missing\n" +
+		"[$.location.number] - field is missing"
+
+	expectedValue := []byte("{" +
+		"\"active\": true," +
+		"\"location\": {" +
+		"\"street\": \"Mountain Drive\"," +
+		"\"number\": 1007" +
+		"}" +
+		"}")
+	actualValue := []byte("{" +
+		"\"active\": true," +
+		"\"location\": {" +
+		"}" +
+		"}")
+
+	expectedRecorderLog := "{\n" +
+		"  \"active\": true,\n" +
+		"  \"location\": {\n" +
+		"     X-- missing field [street]\n" +
+		"     X-- missing field [number]\n" +
+		"  },\n" +
+		"}\n"
+
+	comparator := Builder().
+		StrictObjectSizeCheck(false).
+		Recorder(NewDefaultRecorder()).
+		Comparator()
+	recorderResult, err := comparator.Compare(expectedValue, actualValue)
+
+	checkError(t, err, expectedError)
+	checkRecorderLog(t, expectedRecorderLog, recorderResult)
+}
+
 func TestMissingObject(t *testing.T) {
 	expectedError := "[$] - number of fields does not match\n" +
 		"[$.location] - field is missing"
@@ -163,6 +198,7 @@ func TestOKValidationAllTypes(t *testing.T) {
 func TestErrorValidationAllTypes(t *testing.T) {
 	expectedError := "[$.name] - value mismatch - expected [Bruce] but received [Bruce Wayne]\n" +
 		"[$.age] - value mismatch - expected [37] but received [38]\n" +
+		"[$.location.street] - field is missing\n" +
 		"[$.location.number] - value mismatch - expected [1007] but received [1008]\n" +
 		"[$.location.hidden] - value mismatch - expected [false] but received [true]"
 
@@ -184,7 +220,7 @@ func TestErrorValidationAllTypes(t *testing.T) {
 		" \"age\": 38," +
 		" \"height\": 1.879," +
 		"\"location\": {" +
-		"\"street\": \"Mountain Drive\"," +
+		"\"address\": \"Mountain Drive\"," +
 		"\"number\": 1008," +
 		"\"hidden\": true" +
 		"}" +
@@ -202,6 +238,9 @@ func TestErrorValidationAllTypes(t *testing.T) {
 		t.Error("missing: expected [1007]")
 	}
 	if !strings.Contains(recorderLog, "    \"hidden\": true, <-- value mismatch - expected [false]\n") {
+		t.Error("missing: expected [false]")
+	}
+	if !strings.Contains(recorderLog, "     X-- missing field [street]\n") {
 		t.Error("missing: expected [false]")
 	}
 }
