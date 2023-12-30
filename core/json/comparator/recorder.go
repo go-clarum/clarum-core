@@ -1,7 +1,8 @@
-package json
+package comparator
 
 import (
 	"fmt"
+	"github.com/goclarum/clarum/core/json/path"
 	"reflect"
 	"strings"
 )
@@ -39,8 +40,8 @@ func (recorder *defaultRecorder) AppendFieldName(indent string, fieldName string
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendValue(indent string, path string, value any, kind reflect.Kind) Recorder {
-	childOfArray := pathIsArrayChild(path)
+func (recorder *defaultRecorder) AppendValue(indent string, jsonPath string, value any, kind reflect.Kind) Recorder {
+	childOfArray := path.IsChildOfArray(jsonPath)
 
 	var indentToSet string
 	if childOfArray {
@@ -69,8 +70,8 @@ func (recorder *defaultRecorder) AppendMissingFieldErrorSignal(indent string, pa
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendStartObject(indent string, path string) Recorder {
-	childOfArray := pathIsArrayChild(path)
+func (recorder *defaultRecorder) AppendStartObject(indent string, jsonPath string) Recorder {
+	childOfArray := path.IsChildOfArray(jsonPath)
 
 	if childOfArray {
 		recorder.logResult.WriteString(fmt.Sprintf("%s{", indent))
@@ -80,8 +81,8 @@ func (recorder *defaultRecorder) AppendStartObject(indent string, path string) R
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendEndObject(indent string, path string) Recorder {
-	root := pathIsRoot(path)
+func (recorder *defaultRecorder) AppendEndObject(indent string, jsonPath string) Recorder {
+	root := path.IsRoot(jsonPath)
 
 	if root {
 		recorder.logResult.WriteString(fmt.Sprintf("%s}\n", ""))
@@ -91,8 +92,8 @@ func (recorder *defaultRecorder) AppendEndObject(indent string, path string) Rec
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendStartArray(indent string, path string) Recorder {
-	childOfArray := pathIsArrayChild(path)
+func (recorder *defaultRecorder) AppendStartArray(indent string, jsonPath string) Recorder {
+	childOfArray := path.IsChildOfArray(jsonPath)
 
 	if childOfArray {
 		recorder.logResult.WriteString(fmt.Sprintf("%s[", indent))
@@ -102,8 +103,8 @@ func (recorder *defaultRecorder) AppendStartArray(indent string, path string) Re
 	return recorder
 }
 
-func (recorder *defaultRecorder) AppendEndArray(indent string, path string) Recorder {
-	root := pathIsRoot(path)
+func (recorder *defaultRecorder) AppendEndArray(indent string, jsonPath string) Recorder {
+	root := path.IsRoot(jsonPath)
 
 	if root {
 		recorder.logResult.WriteString(fmt.Sprintf("%s]\n", indent))
