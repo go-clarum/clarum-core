@@ -10,7 +10,9 @@ import (
 
 // HTTP header validation error: header missing
 func TestHeaderMissingResponseValidation(t *testing.T) {
-	expectedError := "HTTP client errorsClient: validation error - header <etag> missing"
+	expectedErrors := []string{
+		"HTTP client errorsClient: validation error - header <etag> missing",
+	}
 
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
@@ -23,12 +25,14 @@ func TestHeaderMissingResponseValidation(t *testing.T) {
 		Message(message.Response(http.StatusOK).
 			ETag("132r1r312e1"))
 
-	checkErrors(t, expectedError, e1, e2, e3, e4)
+	checkErrors(t, expectedErrors, e1, e2, e3, e4)
 }
 
 // HTTP header validation error: header value incorrect
 func TestHeaderInvalidResponseValidation(t *testing.T) {
-	expectedError := "HTTP client errorsClient: validation error - header <someheader> mismatch - expected [wrongValue] but received [[someValue]]"
+	expectedErrors := []string{
+		"HTTP client errorsClient: validation error - header <someheader> mismatch - expected [wrongValue] but received [[someValue]]",
+	}
 
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
@@ -44,12 +48,14 @@ func TestHeaderInvalidResponseValidation(t *testing.T) {
 			ETag("132r1r312e1").
 			Header("someHeader", "wrongValue"))
 
-	checkErrors(t, expectedError, e1, e2, e3, e4)
+	checkErrors(t, expectedErrors, e1, e2, e3, e4)
 }
 
 // HTTP plain text response payload validation error: payload missing
 func TestMissingTextResponsePayloadValidation(t *testing.T) {
-	expectedError := "HTTP client errorsClient: validation error - payload missing - expected [expected payload] but received no payload"
+	expectedErrors := []string{
+		"HTTP client errorsClient: validation error - payload missing - expected [expected payload] but received no payload",
+	}
 
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
@@ -62,12 +68,14 @@ func TestMissingTextResponsePayloadValidation(t *testing.T) {
 		Message(message.Response(http.StatusOK).
 			Payload("expected payload"))
 
-	checkErrors(t, expectedError, e1, e2, e3, e4)
+	checkErrors(t, expectedErrors, e1, e2, e3, e4)
 }
 
 // HTTP plain text response payload validation error: payload invalid
 func TestWrongTextResponsePayloadValidation(t *testing.T) {
-	expectedError := "HTTP client errorsClient: validation error - payload mismatch - expected [expected payload] but received [wrong payload]"
+	expectedErrors := []string{
+		"HTTP client errorsClient: validation error - payload mismatch - expected [expected payload] but received [wrong payload]",
+	}
 
 	e1 := errorsClient.Send().
 		Message(message.Get().BaseUrl("http://localhost:8083"))
@@ -81,5 +89,5 @@ func TestWrongTextResponsePayloadValidation(t *testing.T) {
 		Message(message.Response(http.StatusOK).
 			Payload("expected payload"))
 
-	checkErrors(t, expectedError, e1, e2, e3, e4)
+	checkErrors(t, expectedErrors, e1, e2, e3, e4)
 }

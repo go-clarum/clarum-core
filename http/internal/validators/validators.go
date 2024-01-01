@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/goclarum/clarum/core/arrays"
+	"github.com/goclarum/clarum/core/json/comparator"
 	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
+	"github.com/goclarum/clarum/http/internal"
 	"github.com/goclarum/clarum/http/message"
 	"io"
 	"log/slog"
@@ -112,7 +114,8 @@ func ValidateHttpStatusCode(logPrefix string, expectedMessage *message.ResponseM
 	return nil
 }
 
-func ValidateHttpPayload(logPrefix string, expectedMessage *message.Message, actualPayload io.ReadCloser) error {
+func ValidateHttpPayload(logPrefix string, expectedMessage *message.Message, actualPayload io.ReadCloser,
+	payloadType internal.PayloadType) error {
 	defer closeBody(logPrefix, actualPayload)
 
 	if clarumstrings.IsBlank(expectedMessage.MessagePayload) {
@@ -125,7 +128,7 @@ func ValidateHttpPayload(logPrefix string, expectedMessage *message.Message, act
 		return handleError("%s: could not read response body - %s", logPrefix, err)
 	}
 
-	if err := validatePayload(expectedMessage, bodyBytes); err != nil {
+	if err := validatePayload(expectedMessage, bodyBytes, payloadType); err != nil {
 		return handleError("%s: %s", logPrefix, err)
 	} else {
 		slog.Info(fmt.Sprintf("%s: payload validation successful", logPrefix))
@@ -140,15 +143,30 @@ func closeBody(logPrefix string, body io.ReadCloser) {
 	}
 }
 
-func validatePayload(message *message.Message, payload []byte) error {
-	receivedPayload := string(payload)
+func validatePayload(message *message.Message, actual []byte, payloadType internal.PayloadType) error {
 
-	if clarumstrings.IsBlank(receivedPayload) {
+	if len(actual) == 0 {
 		return errors.New(fmt.Sprintf("validation error - payload missing - expected [%s] but received no payload",
 			message.MessagePayload))
-	} else if message.MessagePayload != receivedPayload { // plain text validation
-		return errors.New(fmt.Sprintf("validation error - payload mismatch - expected [%s] but received [%s]",
-			message.MessagePayload, receivedPayload))
+	} else if payloadType == internal.Plaintext {
+		receivedPayload := string(actual)
+
+		if message.MessagePayload != receivedPayload {
+			return errors.New(fmt.Sprintf("validation error - payload mismatch - expected [%s] but received [%s]",
+				message.MessagePayload, receivedPayload))
+		}
+	} else if payloadType == internal.Json {
+		jsonComparator := comparator.Builder().
+			Recorder(comparator.NewDefaultRecorder()).
+			Comparator()
+
+		reporterLog, errs := jsonComparator.Compare([]byte(message.MessagePayload), actual)
+
+		if errs != nil {
+			slog.Error(reporterLog)
+			return errors.New(fmt.Sprintf("json validation error - [%s]", errs))
+		}
+		slog.Debug(reporterLog)
 	}
 
 	return nil

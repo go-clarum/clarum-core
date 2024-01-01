@@ -6,7 +6,9 @@ import (
 )
 
 func TestEmptyInExpectedJson(t *testing.T) {
-	expectedError := "[$.aliases] - array size mismatch - expected [0] but received [1]"
+	expectedErrors := []string{
+		"[$.aliases] - array size mismatch - expected [0] but received [1]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"aliases\": [" +
@@ -23,11 +25,13 @@ func TestEmptyInExpectedJson(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestEmptyInActualJson(t *testing.T) {
-	expectedError := "[$.aliases] - array size mismatch - expected [1] but received [0]"
+	expectedErrors := []string{
+		"[$.aliases] - array size mismatch - expected [1] but received [0]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"aliases\": [" +
@@ -44,13 +48,15 @@ func TestEmptyInActualJson(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestTypeMismatchJson(t *testing.T) {
-	expectedError := "[$.aliases[1]] - value type mismatch - expected [string] but found [number]\n" +
-		"[$.aliases[2]] - value type mismatch - expected [string] but found [object]\n" +
-		"[$.aliases[3]] - value type mismatch - expected [string] but found [array]"
+	expectedErrors := []string{
+		"[$.aliases[1]] - value type mismatch - expected [string] but found [number]",
+		"[$.aliases[2]] - value type mismatch - expected [string] but found [object]",
+		"[$.aliases[3]] - value type mismatch - expected [string] but found [array]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"aliases\": [" +
@@ -81,11 +87,13 @@ func TestTypeMismatchJson(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestStringValidation(t *testing.T) {
-	expectedError := "[$.aliases[1]] - value mismatch - expected [The Dark Knight] but received [Robin]"
+	expectedErrors := []string{
+		"[$.aliases[1]] - value mismatch - expected [The Dark Knight] but received [Robin]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"aliases\": [" +
@@ -107,12 +115,14 @@ func TestStringValidation(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestNumberValidation(t *testing.T) {
-	expectedError := "[$.measures[1]] - value mismatch - expected [82] but received [83]\n" +
-		"[$.measures[3]] - value mismatch - expected [64.1] but received [64.2]"
+	expectedErrors := []string{
+		"[$.measures[1]] - value mismatch - expected [82] but received [83]",
+		"[$.measures[3]] - value mismatch - expected [64.1] but received [64.2]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"measures\": [" +
@@ -140,11 +150,13 @@ func TestNumberValidation(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestBoolValidation(t *testing.T) {
-	expectedError := "[$.someBooleanArray[1]] - value mismatch - expected [true] but received [false]"
+	expectedErrors := []string{
+		"[$.someBooleanArray[1]] - value mismatch - expected [true] but received [false]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"someBooleanArray\": [" +
@@ -166,11 +178,13 @@ func TestBoolValidation(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestDeepArrayValidation(t *testing.T) {
-	expectedError := "[$.parent[1][1]] - value type mismatch - expected [string] but found [number]"
+	expectedErrors := []string{
+		"[$.parent[1][1]] - value type mismatch - expected [string] but found [number]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"parent\": [" +
@@ -209,12 +223,14 @@ func TestDeepArrayValidation(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestObjectValidation(t *testing.T) {
-	expectedError := "[$.addresses[0].number] - value mismatch - expected [1007] but received [1035]\n" +
-		"[$.addresses[1].hidden] - value mismatch - expected [true] but received [false]"
+	expectedErrors := []string{
+		"[$.addresses[0].number] - value mismatch - expected [1007] but received [1035]",
+		"[$.addresses[1].hidden] - value mismatch - expected [true] but received [false]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"addresses\": [" +
@@ -250,7 +266,7 @@ func TestObjectValidation(t *testing.T) {
 		"}")
 
 	// we ignore the recorder log because the order of the elements in the object is always different
-	recorderResult := testComparator(t, expectedValue, actualValue, expectedError, "")
+	recorderResult := testComparator(t, expectedValue, actualValue, expectedErrors, "")
 
 	if !strings.Contains(recorderResult, "\n    },\n    {\n      ") {
 		t.Error("indentation between objects is wrong")
@@ -272,5 +288,5 @@ func TestRootArrayValidation(t *testing.T) {
 		"  Batcave,\n" +
 		"]\n"
 
-	testComparator(t, expectedValue, actualValue, "", expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }

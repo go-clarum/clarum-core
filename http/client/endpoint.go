@@ -8,7 +8,6 @@ import (
 	"github.com/goclarum/clarum/core/control"
 	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
 	"github.com/goclarum/clarum/http/constants"
-	"github.com/goclarum/clarum/http/internal"
 	"github.com/goclarum/clarum/http/internal/utils"
 	"github.com/goclarum/clarum/http/internal/validators"
 	"github.com/goclarum/clarum/http/message"
@@ -98,7 +97,8 @@ func (endpoint *Endpoint) send(message *message.RequestMessage) error {
 	return nil
 }
 
-func (endpoint *Endpoint) receive(message *message.ResponseMessage) (*http.Response, error) {
+// validationOptions pass by value is intentional
+func (endpoint *Endpoint) receive(message *message.ResponseMessage, validationOptions receiveOptions) (*http.Response, error) {
 	logPrefix := clientLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 
@@ -114,7 +114,8 @@ func (endpoint *Endpoint) receive(message *message.ResponseMessage) (*http.Respo
 		return responsePair.response, errors.Join(
 			validators.ValidateHttpStatusCode(logPrefix, messageToReceive, responsePair.response.StatusCode),
 			validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, responsePair.response.Header),
-			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body))
+			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, responsePair.response.Body,
+				validationOptions.expectedPayloadType))
 	case <-time.After(config.ActionTimeout()):
 		return nil, handleError("%s: receive action timed out - no response received for validation", logPrefix)
 	}
@@ -174,10 +175,6 @@ func buildRequest(prefix string, message *message.RequestMessage) (*http.Request
 
 	for header, value := range message.Headers {
 		req.Header.Set(header, value)
-	}
-	// overwrite content type, when message is marked as JSON
-	if message.PayloadType == internal.Json {
-		req.Header.Set(constants.ContentTypeHeaderName, constants.ContentTypeJsonHeader)
 	}
 
 	qParams := req.URL.Query()

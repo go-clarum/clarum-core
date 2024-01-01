@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/goclarum/clarum/http/internal"
 	"testing"
 )
 
@@ -27,6 +28,9 @@ func (endpoint *Endpoint) Send() *SendActionBuilder {
 func (endpoint *Endpoint) Receive() *ReceiveActionBuilder {
 	return &ReceiveActionBuilder{
 		endpoint: endpoint,
+		options: &receiveOptions{
+			expectedPayloadType: internal.Plaintext,
+		},
 	}
 }
 
@@ -44,6 +48,9 @@ func (testBuilder *TestActionBuilder) Receive() *TestReceiveActionBuilder {
 		test: testBuilder.test,
 		ReceiveActionBuilder: ReceiveActionBuilder{
 			endpoint: testBuilder.endpoint,
+			options: &receiveOptions{
+				expectedPayloadType: internal.Plaintext,
+			},
 		},
 	}
 }

@@ -7,7 +7,9 @@ import (
 )
 
 func TestInvalidExpectedJson(t *testing.T) {
-	expectedError := "unable to parse JSON - error [invalid character '}' in literal true (expecting 'e')] - from string [{\"active\": tru}]"
+	expectedErrors := []string{
+		"unable to parse JSON - error [invalid character '}' in literal true (expecting 'e')] - from string [{\"active\": tru}]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": tru" +
@@ -16,11 +18,13 @@ func TestInvalidExpectedJson(t *testing.T) {
 		"\"active\": true" +
 		"}")
 
-	testComparator(t, expectedValue, actualValue, expectedError, "")
+	testComparator(t, expectedValue, actualValue, expectedErrors, "")
 }
 
 func TestInvalidActualJson(t *testing.T) {
-	expectedError := "unable to parse JSON - error [invalid character '}' looking for beginning of value] - from string [{\"active\": true,\"aliases\": [\"Batman\",}]"
+	expectedErrors := []string{
+		"unable to parse JSON - error [invalid character '}' looking for beginning of value] - from string [{\"active\": true,\"aliases\": [\"Batman\",}]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true" +
@@ -30,7 +34,7 @@ func TestInvalidActualJson(t *testing.T) {
 		"\"aliases\": [\"Batman\"," +
 		"}")
 
-	testComparator(t, expectedValue, actualValue, expectedError, "")
+	testComparator(t, expectedValue, actualValue, expectedErrors, "")
 }
 
 func TestEmptyObject(t *testing.T) {
@@ -38,11 +42,13 @@ func TestEmptyObject(t *testing.T) {
 	actualValue := []byte("{}")
 	expectedRecorderLog := "{\n}\n"
 
-	testComparator(t, expectedValue, actualValue, "", expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestExpectEmptyObject(t *testing.T) {
-	expectedError := "[$] - number of fields does not match"
+	expectedErrors := []string{
+		"[$] - number of fields does not match",
+	}
 
 	expectedValue := []byte("{}")
 	actualValue := []byte("{" +
@@ -51,12 +57,14 @@ func TestExpectEmptyObject(t *testing.T) {
 
 	expectedRecorderLog := "{ <-- number of fields does not match\n}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestReceiveEmptyObject(t *testing.T) {
-	expectedError := "[$] - number of fields does not match\n" +
-		"[$.active] - field is missing"
+	expectedErrors := []string{
+		"[$] - number of fields does not match",
+		"[$.active] - field is missing",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true" +
@@ -65,13 +73,15 @@ func TestReceiveEmptyObject(t *testing.T) {
 
 	expectedRecorderLog := "{ <-- number of fields does not match\n   X-- missing field [active]\n}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestDeepEmptyObject(t *testing.T) {
-	expectedError := "[$.location] - number of fields does not match\n" +
-		"[$.location.street] - field is missing\n" +
-		"[$.location.number] - field is missing"
+	expectedErrors := []string{
+		"[$.location] - number of fields does not match",
+		"[$.location.street] - field is missing",
+		"[$.location.number] - field is missing",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true," +
@@ -86,7 +96,7 @@ func TestDeepEmptyObject(t *testing.T) {
 		"}" +
 		"}")
 
-	recorderLog := testComparator(t, expectedValue, actualValue, expectedError, "")
+	recorderLog := testComparator(t, expectedValue, actualValue, expectedErrors, "")
 
 	if !strings.Contains(recorderLog, "  \"location\": { <-- number of fields does not match\n") {
 		t.Error("missing: number of fields does not match errors")
@@ -100,8 +110,10 @@ func TestDeepEmptyObject(t *testing.T) {
 }
 
 func TestNotStrictFieldCheck(t *testing.T) {
-	expectedError := "[$.location.street] - field is missing\n" +
-		"[$.location.number] - field is missing"
+	expectedErrors := []string{
+		"[$.location.street] - field is missing",
+		"[$.location.number] - field is missing",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true," +
@@ -130,13 +142,15 @@ func TestNotStrictFieldCheck(t *testing.T) {
 		Comparator()
 	recorderResult, err := comparator.Compare(expectedValue, actualValue)
 
-	checkError(t, err, expectedError)
+	checkError(t, err, expectedErrors)
 	checkRecorderLog(t, expectedRecorderLog, recorderResult)
 }
 
 func TestMissingObject(t *testing.T) {
-	expectedError := "[$] - number of fields does not match\n" +
-		"[$.location] - field is missing"
+	expectedErrors := []string{
+		"[$] - number of fields does not match",
+		"[$.location] - field is missing",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true," +
@@ -154,7 +168,7 @@ func TestMissingObject(t *testing.T) {
 		"   X-- missing field [location]" +
 		"\n}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestOKValidationAllTypes(t *testing.T) {
@@ -191,16 +205,18 @@ func TestOKValidationAllTypes(t *testing.T) {
 		"}")
 
 	// we ignore the recorder log because the order of the elements is always different
-	testComparator(t, expectedValue, actualValue, "", "")
+	testComparator(t, expectedValue, actualValue, []string{}, "")
 }
 
 // flaky test because the order of fields inside the JSON object changes on unmarshalling
 func TestErrorValidationAllTypes(t *testing.T) {
-	expectedError := "[$.name] - value mismatch - expected [Bruce] but received [Bruce Wayne]\n" +
-		"[$.age] - value mismatch - expected [37] but received [38]\n" +
-		"[$.location.street] - field is missing\n" +
-		"[$.location.number] - value mismatch - expected [1007] but received [1008]\n" +
-		"[$.location.hidden] - value mismatch - expected [false] but received [true]"
+	expectedErrors := []string{
+		"[$.name] - value mismatch - expected [Bruce] but received [Bruce Wayne]",
+		"[$.age] - value mismatch - expected [37] but received [38]",
+		"[$.location.street] - field is missing",
+		"[$.location.number] - value mismatch - expected [1007] but received [1008]",
+		"[$.location.hidden] - value mismatch - expected [false] but received [true]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true," +
@@ -226,7 +242,7 @@ func TestErrorValidationAllTypes(t *testing.T) {
 		"}" +
 		"}")
 
-	recorderLog := testComparator(t, expectedValue, actualValue, expectedError, "")
+	recorderLog := testComparator(t, expectedValue, actualValue, expectedErrors, "")
 
 	if !strings.Contains(recorderLog, "  \"name\": Bruce Wayne, <-- value mismatch - expected [Bruce]\n") {
 		t.Error("missing: expected [Bruce]")
@@ -246,7 +262,9 @@ func TestErrorValidationAllTypes(t *testing.T) {
 }
 
 func TestKindValidationBooleanType(t *testing.T) {
-	expectedError := "[$.active] - type mismatch - expected [boolean] but found [string]"
+	expectedErrors := []string{
+		"[$.active] - type mismatch - expected [boolean] but found [string]",
+	}
 
 	expectedValue := []byte("{" +
 		"\"active\": true" +
@@ -259,11 +277,13 @@ func TestKindValidationBooleanType(t *testing.T) {
 		"  \"active\":  <-- type mismatch - expected [boolean] but found [string]\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestKindValidationNumberType(t *testing.T) {
-	expectedError := "[$.age] - type mismatch - expected [string] but found [number]"
+	expectedErrors := []string{
+		"[$.age] - type mismatch - expected [string] but found [number]",
+	}
 
 	expectedValue := []byte("{" +
 		" \"age\": \"38\"" +
@@ -276,11 +296,13 @@ func TestKindValidationNumberType(t *testing.T) {
 		"  \"age\":  <-- type mismatch - expected [string] but found [number]\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestKindValidationObjectType(t *testing.T) {
-	expectedError := "[$.location] - type mismatch - expected [string] but found [object]"
+	expectedErrors := []string{
+		"[$.location] - type mismatch - expected [string] but found [object]",
+	}
 
 	expectedValue := []byte("{" +
 		" \"location\": \"Mountain Drive\"" +
@@ -297,11 +319,13 @@ func TestKindValidationObjectType(t *testing.T) {
 		"  \"location\":  <-- type mismatch - expected [string] but found [object]\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 }
 
 func TestKindValidationArrayType(t *testing.T) {
-	expectedError := "[$.aliases] - type mismatch - expected [string] but found [array]"
+	expectedErrors := []string{
+		"[$.aliases] - type mismatch - expected [string] but found [array]",
+	}
 
 	expectedValue := []byte("{" +
 		" \"aliases\": \"Batman\"" +
@@ -316,26 +340,33 @@ func TestKindValidationArrayType(t *testing.T) {
 		"  \"aliases\":  <-- type mismatch - expected [string] but found [array]\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, expectedErrors, expectedRecorderLog)
 
 }
 
-func checkError(t *testing.T, err error, expectedError string) {
-	if len(expectedError) == 0 && err != nil { // no error expected
+func checkError(t *testing.T, err error, expectedErrors []string) {
+	if len(expectedErrors) == 0 && err != nil { // no error expected
 		t.Error(err)
-	} else if len(expectedError) > 0 && err == nil {
-		t.Error("Error expected, but there was none.")
-	} else if len(expectedError) > 0 && err.Error() != expectedError {
-		t.Error(err)
+	} else if len(expectedErrors) > 0 {
+		if err == nil {
+			t.Error("Errors expected, but there were none.")
+			return
+		}
+
+		for _, value := range expectedErrors {
+			if !strings.Contains(err.Error(), value) {
+				t.Errorf("Missing error: %s", value)
+			}
+		}
 	}
 }
 
-func testComparator(t *testing.T, expectedValue []byte, actualValue []byte, expectedError string,
+func testComparator(t *testing.T, expectedValue []byte, actualValue []byte, expectedErrors []string,
 	expectedRecorderLog string) string {
 	comparator := Builder().Recorder(NewDefaultRecorder()).Comparator()
 	recorderResult, err := comparator.Compare(expectedValue, actualValue)
 
-	checkError(t, err, expectedError)
+	checkError(t, err, expectedErrors)
 	checkRecorderLog(t, expectedRecorderLog, recorderResult)
 
 	return recorderResult

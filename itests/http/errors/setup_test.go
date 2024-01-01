@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/goclarum/clarum"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,14 +29,16 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func checkErrors(t *testing.T, expectedError string, actionErrors ...error) {
+func checkErrors(t *testing.T, expectedErrors []string, actionErrors ...error) {
 	allErrors := errors.Join(actionErrors...)
 
 	if allErrors == nil {
 		t.Error("One error expected, but there was none.")
 	} else {
-		if allErrors.Error() != expectedError {
-			t.Errorf("Unexpected errors: %s", allErrors)
+		for _, value := range expectedErrors {
+			if !strings.Contains(allErrors.Error(), value) {
+				t.Errorf("Unexpected errors: %s", allErrors)
+			}
 		}
 	}
 }

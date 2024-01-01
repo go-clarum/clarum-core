@@ -32,11 +32,6 @@ func (response *ResponseMessage) ETag(value string) *ResponseMessage {
 	return response
 }
 
-func (response *ResponseMessage) Json() *ResponseMessage {
-	response.Message.json()
-	return response
-}
-
 func (response *ResponseMessage) Payload(payload string) *ResponseMessage {
 	response.Message.MessagePayload = payload
 	return response

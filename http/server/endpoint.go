@@ -62,7 +62,7 @@ func NewServerEndpoint(name string, port uint, contentType string, timeout time.
 }
 
 // this Method is blocking, until a request is received
-func (endpoint *Endpoint) receive(message *message.RequestMessage) (*http.Request, error) {
+func (endpoint *Endpoint) receive(message *message.RequestMessage, validationOptions receiveOptions) (*http.Request, error) {
 	logPrefix := serverLogPrefix(endpoint.name)
 	slog.Debug(fmt.Sprintf("%s: message to receive %s", logPrefix, message.ToString()))
 	messageToReceive := endpoint.getMessageToReceive(message)
@@ -76,7 +76,8 @@ func (endpoint *Endpoint) receive(message *message.RequestMessage) (*http.Reques
 			validators.ValidateHttpMethod(logPrefix, messageToReceive, receivedRequest.Method),
 			validators.ValidateHttpHeaders(logPrefix, &messageToReceive.Message, receivedRequest.Header),
 			validators.ValidateHttpQueryParams(logPrefix, messageToReceive, receivedRequest.URL),
-			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, receivedRequest.Body))
+			validators.ValidateHttpPayload(logPrefix, &messageToReceive.Message, receivedRequest.Body,
+				validationOptions.expectedPayloadType))
 	case <-time.After(config.ActionTimeout()):
 		return nil, handleError("%s: receive action timed out - no request received for validation", logPrefix)
 	}

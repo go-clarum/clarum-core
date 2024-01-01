@@ -111,11 +111,6 @@ func (request *RequestMessage) QueryParam(key string, values ...string) *Request
 	return request
 }
 
-func (request *RequestMessage) Json() *RequestMessage {
-	request.Message.json()
-	return request
-}
-
 func (request *RequestMessage) Payload(payload string) *RequestMessage {
 	request.Message.MessagePayload = payload
 	return request

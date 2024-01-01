@@ -180,22 +180,6 @@ func TestBuildRequest(t *testing.T) {
 	}
 }
 
-func TestBuildRequestJson(t *testing.T) {
-	requestMessage := message.Post("my", "api/v0").
-		Json().
-		Payload("batman!")
-
-	newRequest, err := buildRequest("prefix", requestMessage)
-	if err != nil {
-		t.Errorf("error is unexpected")
-	}
-
-	actualHeaderValue := newRequest.Header[constants.ContentTypeHeaderName]
-	if actualHeaderValue[0] != "application/json" {
-		t.Errorf("expected Content-Type = application/json")
-	}
-}
-
 func TestGetTimeoutWithDefault(t *testing.T) {
 	t1 := getTimeoutWithDefault(time.Second * 5)
 

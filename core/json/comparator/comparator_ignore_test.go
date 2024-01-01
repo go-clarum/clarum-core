@@ -5,8 +5,6 @@ import (
 )
 
 func TestIgnoreString(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		"\"address\": \"@ignore@\"," +
 		"\"name\": \"Bruce Wayne\"" +
@@ -21,12 +19,10 @@ func TestIgnoreString(t *testing.T) {
 		"  \"name\": Bruce Wayne,\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreBoolean(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		"\"active\": \"@ignore@\"" +
 		"}")
@@ -38,12 +34,10 @@ func TestIgnoreBoolean(t *testing.T) {
 		"  \"active\":  <-- ignoring field\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreNumberType(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		" \"age\": \"@ignore@\"" +
 		"}")
@@ -55,12 +49,10 @@ func TestIgnoreNumberType(t *testing.T) {
 		"  \"age\":  <-- ignoring field\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreObjectType(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		" \"location\": \"@ignore@\"" +
 		"}")
@@ -76,12 +68,10 @@ func TestIgnoreObjectType(t *testing.T) {
 		"  \"location\":  <-- ignoring field\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreArrayType(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		" \"aliases\": \"@ignore@\"" +
 		"}")
@@ -95,12 +85,10 @@ func TestIgnoreArrayType(t *testing.T) {
 		"  \"aliases\":  <-- ignoring field\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreValueInArray(t *testing.T) {
-	expectedError := ""
-
 	expectedValue := []byte("{" +
 		"\"aliases\": [" +
 		"\"@ignore@\"," +
@@ -121,7 +109,7 @@ func TestIgnoreValueInArray(t *testing.T) {
 		"  ],\n" +
 		"}\n"
 
-	testComparator(t, expectedValue, actualValue, expectedError, expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
 
 func TestIgnoreValueInRootArray(t *testing.T) {
@@ -139,5 +127,5 @@ func TestIgnoreValueInRootArray(t *testing.T) {
 		"  Batcave,\n" +
 		"]\n"
 
-	testComparator(t, expectedValue, actualValue, "", expectedRecorderLog)
+	testComparator(t, expectedValue, actualValue, []string{}, expectedRecorderLog)
 }
