@@ -163,8 +163,8 @@ func validatePayload(message *message.Message, actual []byte, payloadType intern
 		reporterLog, errs := jsonComparator.Compare([]byte(message.MessagePayload), actual)
 
 		if errs != nil {
-			slog.Error(reporterLog)
-			return errors.New(fmt.Sprintf("json validation error - [%s]", errs))
+			slog.Info(fmt.Sprintf("json validation log: %s", reporterLog))
+			return errors.New(fmt.Sprintf("json validation errors: [%s]", errs))
 		}
 		slog.Debug(reporterLog)
 	}
