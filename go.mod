@@ -1,4 +1,4 @@
-module github.com/goclarum/clarum
+module github.com/goclarum/clarum/core
 
 go 1.21
 
