@@ -1,5 +1,0 @@
-profile: dev
-actions:
-    timeoutseconds: 5
-logging:
-    level: info
