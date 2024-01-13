@@ -35,8 +35,8 @@ will be used & configured.
     - beforeSuite
     - afterSuite
 - execution context
-  - log what tests have been executed
-  - which were successful or failed
+    - log what tests have been executed
+    - which were successful or failed
 
 #### Packages
 
@@ -81,7 +81,8 @@ will be used & configured.
 - execution time per test
 - per test suite
 
-### v1.1
+
+### v1.x
 
 #### Runtime
 
@@ -97,16 +98,6 @@ will be used & configured.
 - validation:
     - XML payload validation (with @ignore@ for values)
     - specific path validation/ignore for XPath & JsonPath on receive actions
-
-#### Metrics
-
-- how fast the system under test sends a request/response
-
-### v1.x
-
-#### HTTP
-
-- validation:
     - schema validation (XML & JSON)
     - OpenApi validation
 - actions:
@@ -118,11 +109,12 @@ will be used & configured.
 
 #### Metrics
 
+- how fast the system under test sends a request/response
 - test actions:
     - fail test/test suite if metrics were/were not reached
 - test suite metrics report:
-  - with history of previous runs
-  - with delta compared to previous runs
+    - with history of previous runs
+    - with delta compared to previous runs
 
 #### Features
 
