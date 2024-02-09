@@ -2,8 +2,8 @@ package files
 
 import (
 	"errors"
-	"github.com/goclarum/clarum/core/logging"
-	"github.com/goclarum/clarum/core/validators/strings"
+	"github.com/go-clarum/clarum-core/logging"
+	"github.com/go-clarum/clarum-core/validators/strings"
 	"gopkg.in/yaml.v3"
 	"os"
 )

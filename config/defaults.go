@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/goclarum/clarum/core/validators/strings"
+	"github.com/go-clarum/clarum-core/validators/strings"
 	"log/slog"
 )
 

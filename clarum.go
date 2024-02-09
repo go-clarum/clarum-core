@@ -1,9 +1,9 @@
 package clarum
 
 import (
-	"github.com/goclarum/clarum/core/config"
-	"github.com/goclarum/clarum/core/control"
-	"github.com/goclarum/clarum/core/logging"
+	"github.com/go-clarum/clarum-core/config"
+	"github.com/go-clarum/clarum-core/control"
+	"github.com/go-clarum/clarum-core/logging"
 )
 
 func Setup() {

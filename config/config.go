@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/goclarum/clarum/core/files"
-	"github.com/goclarum/clarum/core/logging"
+	"github.com/go-clarum/clarum-core/files"
+	"github.com/go-clarum/clarum-core/logging"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"path"

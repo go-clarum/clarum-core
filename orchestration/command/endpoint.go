@@ -3,11 +3,11 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/goclarum/clarum/core/config"
-	"github.com/goclarum/clarum/core/control"
-	"github.com/goclarum/clarum/core/durations"
-	"github.com/goclarum/clarum/core/logging"
-	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
+	"github.com/go-clarum/clarum-core/config"
+	"github.com/go-clarum/clarum-core/control"
+	"github.com/go-clarum/clarum-core/durations"
+	"github.com/go-clarum/clarum-core/logging"
+	clarumstrings "github.com/go-clarum/clarum-core/validators/strings"
 	"os/exec"
 	"time"
 )
