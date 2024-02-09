@@ -1,8 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"github.com/goclarum/clarum/core/files"
+	"github.com/goclarum/clarum/core/logging"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"path"
@@ -26,7 +26,7 @@ func init() {
 	configFilePath := path.Join(*baseDir, *configFile)
 	config, err := files.ReadYamlFileToStruct[Config](configFilePath)
 	if err != nil {
-		slog.Info("Failed to load config file. Default values will be used instead")
+		logging.Info("Failed to load config file. Default values will be used instead")
 		config = &Config{}
 	}
 
@@ -35,7 +35,7 @@ func init() {
 	c = config
 
 	configYaml, _ := yaml.Marshal(config)
-	slog.Info(fmt.Sprintf("Using the following config:\n[\n%s]", configYaml))
+	logging.Infof("Using the following config:\n[\n%s]", configYaml)
 }
 
 func Version() string {

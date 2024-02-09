@@ -3,10 +3,11 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/goclarum/clarum/core/config"
 	"github.com/goclarum/clarum/core/control"
 	"github.com/goclarum/clarum/core/durations"
+	"github.com/goclarum/clarum/core/logging"
 	clarumstrings "github.com/goclarum/clarum/core/validators/strings"
-	"log/slog"
 	"os/exec"
 	"time"
 )
@@ -17,6 +18,7 @@ type Endpoint struct {
 	warmup        time.Duration
 	cmd           *exec.Cmd
 	cmdCancel     context.CancelFunc
+	logger        *logging.Logger
 }
 
 func newCommandEndpoint(name string, components []string, warmup time.Duration) *Endpoint {
@@ -28,6 +30,7 @@ func newCommandEndpoint(name string, components []string, warmup time.Duration) 
 		name:          name,
 		cmdComponents: components,
 		warmup:        durations.GetDurationWithDefault(warmup, 1*time.Second),
+		logger:        logging.NewLogger(config.LoggingLevel(), logPrefix(name)),
 	}
 }
 
@@ -35,22 +38,21 @@ func newCommandEndpoint(name string, components []string, warmup time.Duration) 
 // The process will be started into a cancelable context so that we can
 // cancel it later in the post-integration test phase.
 func (endpoint *Endpoint) start() error {
-	logPrefix := logPrefix(endpoint.name)
-	slog.Info(fmt.Sprintf("%s: running cmd [%s]", logPrefix, endpoint.cmdComponents))
+	endpoint.logger.Infof("running cmd [%s]", endpoint.cmdComponents)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	endpoint.cmd = exec.CommandContext(ctx, endpoint.cmdComponents[0], endpoint.cmdComponents[1:]...)
 	endpoint.cmdCancel = cancel
 
-	slog.Debug(fmt.Sprintf("%s: starting command", logPrefix))
+	endpoint.logger.Debug("starting command")
 	if err := endpoint.cmd.Start(); err != nil {
 		return err
 	} else {
-		slog.Debug(fmt.Sprintf("%s: cmd start successful", logPrefix))
+		endpoint.logger.Debug("cmd start successful")
 	}
 
 	time.Sleep(endpoint.warmup)
-	slog.Debug(fmt.Sprintf("%s: warmup ended", logPrefix))
+	endpoint.logger.Debug("warmup ended")
 
 	return nil
 }
@@ -62,27 +64,26 @@ func (endpoint *Endpoint) stop() error {
 	control.RunningActions.Add(1)
 	defer control.RunningActions.Done()
 
-	logPrefix := logPrefix(endpoint.name)
-	slog.Info(fmt.Sprintf("%s: stopping cmd [%s]", logPrefix, endpoint.cmdComponents))
+	endpoint.logger.Infof("stopping cmd [%s]", endpoint.cmdComponents)
 
 	if endpoint.cmdCancel != nil {
-		slog.Debug(fmt.Sprintf("%s: cancelling cmd", logPrefix))
+		endpoint.logger.Debug("cancelling cmd")
 		endpoint.cmdCancel()
 
 		if _, err := endpoint.cmd.Process.Wait(); err != nil {
-			slog.Error(fmt.Sprintf(fmt.Sprintf("%s: cmd.Wait() returned error - [%s]", logPrefix, err)))
+			endpoint.logger.Errorf("cmd.Wait() returned error - [%s]", err)
 			endpoint.killProcess()
 			return err
 		} else {
-			slog.Debug(fmt.Sprintf("%s: context cancel finished successfully", logPrefix))
+			endpoint.logger.Debug("context cancel finished successfully")
 		}
 	} else {
 		if err := endpoint.cmd.Process.Release(); err != nil {
-			slog.Error(fmt.Sprintf("%s: cmd.Release() returned error - [%s]", logPrefix, err))
+			endpoint.logger.Errorf("cmd.Release() returned error - [%s]", err)
 			endpoint.killProcess()
 			return err
 		} else {
-			slog.Debug(fmt.Sprintf("%s: cmd kill successful", logPrefix))
+			endpoint.logger.Debug("cmd kill successful")
 		}
 	}
 
@@ -90,15 +91,14 @@ func (endpoint *Endpoint) stop() error {
 }
 
 func (endpoint *Endpoint) killProcess() {
-	logPrefix := logPrefix(endpoint.name)
-	slog.Info(fmt.Sprintf(fmt.Sprintf("%s: killing process", logPrefix)))
+	endpoint.logger.Info("killing process")
 
 	if err := endpoint.cmd.Process.Kill(); err != nil {
-		slog.Error(fmt.Sprintf("%s: cmd.Kill() returned error - [%s]", logPrefix, err))
+		endpoint.logger.Errorf("cmd.Kill() returned error - [%s]", err)
 		return
 	}
 }
 
 func logPrefix(cmdName string) string {
-	return fmt.Sprintf("Command %s", cmdName)
+	return fmt.Sprintf("Command %s: ", cmdName)
 }
